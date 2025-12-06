@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v9.48 (Safe Mode)</title>
+    <title>스마트 안전 관제 v9.49 (Fixed)</title>
     
-    <!-- PWA 설정 -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13,7 +12,6 @@
     <link rel="icon" id="favicon" href="">
     <link rel="manifest" id="manifest-placeholder">
 
-    <!-- 라이브러리 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
@@ -61,7 +59,7 @@
     <script>
         // Global Error Handler
         window.onerror = function(msg, url, line, col, error) {
-            alert("오류 발생: " + msg + "\n줄: " + line);
+            console.error("오류 발생:", msg, line);
             return false;
         };
 
@@ -100,7 +98,7 @@
             <div class="mb-6 flex flex-col items-center">
                 <img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon">
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">System Admin v9.48</p>
+                <p class="text-sm text-gray-500">System Admin v9.49</p>
             </div>
             
             <div id="pwa-install-area" class="w-full mb-4 hidden">
@@ -153,7 +151,6 @@
         </div>
     </div>
 
-    <!-- Main Dashboard -->
     <div id="main-dashboard" class="flex h-screen relative hidden">
         <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-[1400] hidden md:hidden glass transition-opacity duration-300"></div>
 
@@ -200,7 +197,6 @@
                     </div>
                 </div>
 
-                <!-- Stats -->
                 <div class="bg-white p-4 rounded shadow-sm border md:block hidden">
                     <h3 class="font-bold text-gray-700 text-sm mb-2">실시간 현황</h3>
                     <div class="grid grid-cols-4 gap-2 text-center">
@@ -271,7 +267,6 @@
             </div>
         </div>
 
-        <!-- Map Area -->
         <div class="flex-1 relative bg-gray-200">
             <div id="map" class="h-full w-full outline-none"></div>
             <button id="btn-menu-toggle" class="absolute top-4 left-4 z-[500] bg-white p-3 rounded shadow md:hidden"><i class="fa-solid fa-bars"></i></button>
@@ -293,7 +288,6 @@
             <button onclick="triggerSOS()" id="btn-sos" class="sos-btn shadow-lg hover:scale-105 transition-transform"><i class="fa-solid fa-bell fa-xl mb-1"></i>SOS</button>
         </div>
 
-        <!-- Mobile Stats -->
         <div class="mobile-stats-bar md:hidden">
             <div class="stat-item"><span class="stat-label">총원</span><span class="stat-value text-blue-800" id="mobile-stat-total">0</span></div>
             <div class="stat-item"><span class="stat-label">작업중</span><span class="stat-value text-green-600" id="mobile-stat-active">0</span></div>
@@ -302,14 +296,12 @@
         </div>
     </div>
 
-    <!-- Other Modals (Hidden) -->
     <div id="createSiteModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2200] hidden flex items-center justify-center p-4"><div class="bg-white rounded-lg p-6 w-full max-w-sm"><h3 class="text-lg font-bold mb-4">새 현장 생성</h3><input type="text" id="new-site-name" placeholder="현장 이름" class="w-full border p-2 rounded mb-3"><div class="flex gap-2"><button onclick="createNewSite()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">생성</button><button onclick="document.getElementById('createSiteModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">취소</button></div></div></div>
     <div id="myInfoModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2100] hidden flex items-center justify-center p-4"><div class="bg-white rounded-lg p-6 w-full max-w-sm"><h3 class="text-lg font-bold mb-4">내 정보 수정</h3><input type="text" id="my-name" placeholder="이름" class="w-full border p-2 rounded mb-2"><div class="grid grid-cols-2 gap-2 mb-4"><input type="text" id="my-bp" placeholder="혈압" class="border p-2 rounded"><input type="number" id="my-sugar" placeholder="혈당" class="border p-2 rounded"></div><button onclick="saveMyInfo()" class="w-full bg-green-600 text-white py-2 rounded font-bold">저장</button><button onclick="document.getElementById('myInfoModal').classList.add('hidden')" class="w-full mt-2 bg-gray-200 py-2 rounded">닫기</button></div></div>
     <div id="userInfoModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2100] hidden flex items-center justify-center p-4"><div class="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl overflow-y-auto max-h-[80vh]"><h3 class="text-lg font-bold mb-4">근로자 정보 관리</h3><input type="hidden" id="edit-user-id"><div class="space-y-3"><input type="text" id="edit-assigned-area" class="w-full border p-2 rounded text-sm" placeholder="작업 구역"><input type="text" id="edit-personal-info" class="w-full border p-2 rounded text-sm" placeholder="연락처"><input type="date" id="edit-checkup-date" class="w-full border p-2 rounded text-sm"><input type="text" id="edit-job" class="w-full border p-2 rounded text-sm" placeholder="직종"><input type="text" id="edit-equip" class="w-full border p-2 rounded text-sm" placeholder="장비"><select id="edit-health-grade" class="w-full border p-2 rounded text-sm"><option value="A">A</option><option value="B">B</option><option value="C1">C1</option><option value="C2">C2</option><option value="D1">D1</option><option value="D2">D2</option></select><div class="flex items-center gap-2"><input type="checkbox" id="edit-is-elderly"><label for="edit-is-elderly">고령자</label></div></div><div class="flex gap-2 mt-6"><button onclick="saveUserInfo()" class="flex-1 bg-blue-600 text-white py-2 rounded">저장</button><button onclick="document.getElementById('userInfoModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">닫기</button></div></div></div>
     <div id="passwordModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2200] hidden flex items-center justify-center p-4"><div class="bg-white rounded-lg p-6 w-full max-w-sm"><h3 class="text-lg font-bold mb-4" id="pw-modal-title">비밀번호 변경</h3><input type="hidden" id="pw-target-user-id"><div class="mb-4"><input type="password" id="new-password" class="w-full border p-2 rounded" placeholder="새 비밀번호"></div><div class="flex gap-2"><button onclick="saveNewPassword()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">변경</button><button onclick="document.getElementById('passwordModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">취소</button></div></div></div>
     <div id="zoneModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2000] hidden flex items-center justify-center p-4"><div class="bg-white rounded-lg p-6 w-full max-w-sm"><h3 class="text-lg font-bold mb-4" id="zone-modal-title">구역 저장</h3><input type="hidden" id="editing-zone-id"><input type="text" id="zone-name" placeholder="구역 이름" class="w-full border p-2 rounded mb-3"><div class="flex items-center gap-2 mb-3 bg-red-50 p-2 rounded"><input type="checkbox" id="zone-is-confined" class="w-4 h-4 text-red-600 rounded"><label for="zone-is-confined" class="text-sm font-bold text-red-700">위험 구역 (알림)</label></div><div id="time-limit-box" class="hidden mb-3 ml-2"><label class="text-xs text-gray-600">제한 시간(초): </label><input type="number" id="zone-time-limit" value="10" class="border w-16 text-center rounded p-1"></div><div class="flex gap-2"><button onclick="saveZone()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">저장</button><button onclick="document.getElementById('zoneModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">취소</button></div></div></div>
 
-    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -346,39 +338,11 @@
         const isManager = (role) => ['super_admin', 'admin', 'safety', 'health', 'supervisor'].includes(role);
         const isSiteAdmin = (role) => ['super_admin', 'admin', 'safety', 'health'].includes(role);
         
-        // [FIX] Safe DOM Setter
         const safeSetText = (id, text) => {
             const el = document.getElementById(id);
             if(el) el.innerText = text;
         };
 
-        window.addEventListener('DOMContentLoaded', async () => {
-             if(window.Capacitor) isWebMode = false;
-             const savedUser = localStorage.getItem('savedUser');
-             if(savedUser) {
-                 const u = JSON.parse(savedUser);
-                 try {} catch(e) { console.error("Auto-login check error", e); }
-             }
-             loadSitesToSelect('reg-site');
-             document.getElementById('loading-screen').classList.add('hidden');
-             document.getElementById('auth-screen').classList.remove('hidden');
-        });
-
-        function loadSitesToSelect(elementId) {
-            try {
-                 onSnapshot(getColRef('sites'), (snap) => {
-                    const sel = document.getElementById(elementId);
-                    if(!sel) return;
-                    sel.innerHTML = '<option value="" disabled selected>현장 선택</option>';
-                    snap.forEach(d => {
-                        const s = d.data();
-                        sel.innerHTML += `<option value="${d.id}">${s.name}</option>`;
-                    });
-                }, (error) => { console.log("Waiting for auth..."); });
-            } catch(e) { console.log("Site load deferred"); }
-        }
-
-        // [FIX] Ensure window attachment
         window.handleLogin = async () => {
             const id = document.getElementById('login-id').value;
             const pw = document.getElementById('login-pw').value;
@@ -419,7 +383,6 @@
                 alert("로그인 오류: " + error.message);
             }
         };
-        document.getElementById('btn-login').onclick = window.handleLogin;
 
         window.handleSignup = async () => {
             const id = document.getElementById('reg-id').value;
@@ -443,14 +406,12 @@
                 alert("가입 신청 실패: " + e.message);
             }
         };
-        document.getElementById('btn-signup').onclick = window.handleSignup;
 
         async function startSession() {
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('main-dashboard').classList.remove('hidden');
             safeSetText('user-display', `${currentUser.name} (${getRoleName(currentUser.role)})`);
             
-            // [FIX] Check null before setting text (Mobile view might hide this)
             safeSetText('mobile-user-name', currentUser.name); 
 
             if (!auth.currentUser) await signInAnonymously(auth);
@@ -487,7 +448,6 @@
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(map);
         }
 
-        // ... (Subscribe Data Logic - Same as before but ensure safety)
         function subscribeData() {
             let qZone = getColRef('zones');
             if(currentSiteId !== 'all') qZone = query(qZone, where('siteId', '==', currentSiteId));
@@ -573,32 +533,22 @@
             safeSetText('status-msg', 'GPS 연결 시도...');
             if(navigator.geolocation) {
                 gpsWatchId = navigator.geolocation.watchPosition(
-                    (pos) => {
-                        handlePositionUpdate(pos.coords);
-                    },
+                    (pos) => { handlePositionUpdate(pos.coords); },
                     (err) => { safeSetText('status-msg', '신호 약함'); },
-                    { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 } // Increased timeout to 30s
+                    { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 }
                 );
             }
         }
         
-        // [FIX] Handle Map Load Race Condition & Map Existence
         function handlePositionUpdate(coords) {
             const { latitude, longitude, accuracy } = coords;
-            
-            // Check if map is ready
             if (!map) return; 
-
             safeSetText('status-msg', 'GPS 정상 🟢');
-            currentLat = latitude; currentLng = longitude; currentAccuracy = accuracy;
             safeSetText('gps-accuracy-display', `오차: ±${Math.round(accuracy)}m`);
             
             if(accuracyCircle) map.removeLayer(accuracyCircle);
             accuracyCircle = L.circle([latitude, longitude], { radius: accuracy, color: 'blue', fillOpacity: 0.05, weight: 1 }).addTo(map);
-            
-            // Auto Pan Logic (Only pan if map exists)
             map.panTo([latitude, longitude]);
-            
             updateUserLocation(latitude, longitude);
         }
 
@@ -623,7 +573,6 @@
             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'workers', currentUser.id), payload, { merge: true });
         }
         
-        // ... Helper Functions ...
         function isPointInPolygon(p, vs) { var x = p[0], y = p[1]; var inside = false; for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) { var xi = vs[i][0], yi = vs[i][1]; var xj = vs[j][0], yj = vs[j][1]; var intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi); if (intersect) inside = !inside; } return inside; }
         function getRoleName(r) { if(r==='super_admin') return '최고관리자'; if(r==='admin') return '현장소장'; if(r==='safety') return '안전관리자'; if(r==='health') return '보건관리자'; if(r==='supervisor') return '관리감독자'; if(r==='guard') return '경비'; return '근로자'; }
         function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) { var R = 6371; var dLat = deg2rad(lat2-lat1); var dLon = deg2rad(lon2-lon1); var a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2); var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); return R * c; }
@@ -631,7 +580,60 @@
         function showToast(msg, type) { const c = document.getElementById('toast-container'); const t = document.createElement('div'); t.className = `toast ${type}`; let icon = 'fa-info-circle text-blue-500'; if(type === 'danger') icon = 'fa-circle-exclamation text-red-500'; else if(type === 'success') icon = 'fa-circle-check text-green-500'; else if(type === 'warning') icon = 'fa-triangle-exclamation text-orange-500'; t.innerHTML = `<i class="fa-solid ${icon}"></i><span>${msg}</span>`; c.appendChild(t); setTimeout(()=>t.remove(), 4000); }
         function renderDangerList() { /* ... */ }
         function enableNoSleep() { const v = document.getElementById('no-sleep-video'); if(v) v.play().catch(()=>{}); requestWakeLock(); }
-        function playEmergencySound() { /* ... */ }
+        function loadSitesToSelect(elementId) {
+            try {
+                 onSnapshot(getColRef('sites'), (snap) => {
+                    const sel = document.getElementById(elementId);
+                    if(!sel) return;
+                    sel.innerHTML = '<option value="" disabled selected>현장 선택</option>';
+                    snap.forEach(d => {
+                        const s = d.data();
+                        sel.innerHTML += `<option value="${d.id}">${s.name}</option>`;
+                    });
+                }, (error) => { console.log("Waiting for auth..."); });
+            } catch(e) { console.log("Site load deferred"); }
+        }
+
+        // --- SAFE INITIALIZATION (FIXED HERE) ---
+        window.addEventListener('DOMContentLoaded', async () => {
+             if(window.Capacitor) isWebMode = false;
+             
+             // Auto-login Check
+             const savedUser = localStorage.getItem('savedUser');
+             if(savedUser) {
+                 try { currentUser = JSON.parse(savedUser); } catch(e) {}
+             }
+             
+             // Initialize UI Buttons Safely
+             const btnLogin = document.getElementById('btn-login');
+             if(btnLogin) btnLogin.onclick = window.handleLogin;
+             
+             const btnSignup = document.getElementById('btn-signup');
+             if(btnSignup) btnSignup.onclick = window.handleSignup;
+             
+             const tabLogin = document.getElementById('tab-login');
+             if(tabLogin) tabLogin.onclick = () => {
+                 document.getElementById('form-login').classList.remove('hidden');
+                 document.getElementById('form-signup').classList.add('hidden');
+                 document.getElementById('tab-login').classList.add('border-blue-600', 'text-blue-600');
+                 document.getElementById('tab-signup').classList.remove('border-blue-600', 'text-blue-600');
+             };
+
+             const tabSignup = document.getElementById('tab-signup');
+             if(tabSignup) tabSignup.onclick = () => {
+                 document.getElementById('form-login').classList.add('hidden');
+                 document.getElementById('form-signup').classList.remove('hidden');
+                 document.getElementById('tab-signup').classList.add('border-blue-600', 'text-blue-600');
+                 document.getElementById('tab-login').classList.remove('border-blue-600', 'text-blue-600');
+             };
+
+             // Load Sites
+             loadSitesToSelect('reg-site');
+             
+             // Hide Loading Screen
+             document.getElementById('loading-screen').classList.add('hidden');
+             document.getElementById('auth-screen').classList.remove('hidden');
+        });
 
         // Global Window Functions
         window.startDrawing = (type) => { isDrawing = true; drawType = type; drawingPoints = []; document.getElementById('tool-default').classList.add('hidden'); document.getElementById('tool-drawing').classList.remove('hidden'); alert("지도에 점을 찍으세요."); };
@@ -650,12 +652,10 @@
             const total = activeWorkers.length;
             const out = activeWorkers.filter(w => !w.isVisible).length;
             const danger = activeWorkers.filter(w => w.dangerEntryTime || w.isSOS).length;
-            
             safeSetText('stat-total', total);
             safeSetText('stat-active', active);
             safeSetText('stat-out', out);
             safeSetText('stat-danger', danger);
-
             safeSetText('mobile-stat-total', total);
             safeSetText('mobile-stat-active', active);
             safeSetText('mobile-stat-out', out);
