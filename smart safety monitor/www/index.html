@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v9.4 (SOS & Admin Fixed)</title>
+    <title>스마트 안전 관제 v9.5 (Site Boundary & Role ACL)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -46,7 +46,6 @@
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #2563eb; cursor: pointer; margin-top: -6px; }
         input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #bfdbfe; border-radius: 2px; }
 
-        /* Mobile Stats Bar */
         .mobile-stats-bar {
             position: fixed; bottom: 0; left: 0; width: 100%;
             background: white; border-top: 1px solid #e2e8f0;
@@ -96,15 +95,9 @@
             <div class="mb-6 flex flex-col items-center">
                 <img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon">
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">System Admin v9.4</p>
+                <p class="text-sm text-gray-500">System Admin v9.5</p>
             </div>
             
-            <div id="pwa-install-area" class="w-full mb-4 hidden">
-                <button id="btn-pwa-install" class="w-full bg-blue-100 text-blue-800 py-3 rounded-lg font-bold border border-blue-300 flex items-center justify-center gap-2 animate-pulse">
-                    <i class="fa-solid fa-download"></i> 앱 설치하기
-                </button>
-            </div>
-
             <div class="flex border-b mb-4 w-full">
                 <button id="tab-login" class="flex-1 py-2 font-bold text-blue-600 border-b-2 border-blue-600">로그인</button>
                 <button id="tab-signup" class="flex-1 py-2 text-gray-500 hover:text-blue-500">회원가입</button>
@@ -124,13 +117,10 @@
                 <input type="text" id="reg-id" placeholder="아이디" class="w-full border p-3 rounded">
                 <input type="text" id="reg-name" placeholder="이름 (실명)" class="w-full border p-3 rounded">
                 <input type="password" id="reg-pw" placeholder="비밀번호" class="w-full border p-3 rounded">
-                
                 <div class="border p-3 rounded bg-gray-50">
                     <label class="text-xs font-bold text-gray-500 block mb-1">소속 현장 선택</label>
-                    <select id="reg-site" class="w-full border p-2 rounded bg-white">
-                        </select>
+                    <select id="reg-site" class="w-full border p-2 rounded bg-white"></select>
                 </div>
-
                 <select id="reg-role" class="w-full border p-3 rounded bg-white">
                     <option value="worker">근로자</option>
                     <option value="guard">경비</option>
@@ -141,13 +131,6 @@
                 </select>
                 <button id="btn-signup" class="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700 transition">가입 신청</button>
             </div>
-        </div>
-    </div>
-
-    <div id="seasonal-risk-banner" class="fixed top-0 left-0 w-full z-[2000] hidden shadow-lg animate-pulse">
-        <div class="p-3 text-center text-white font-bold flex justify-center items-center gap-2">
-            <i class="fa-solid fa-triangle-exclamation text-xl"></i>
-            <span id="seasonal-risk-msg"></span>
         </div>
     </div>
 
@@ -169,9 +152,9 @@
             
             <div id="super-admin-controls" class="p-2 bg-yellow-50 border-b border-yellow-200 hidden">
                 <label class="text-[10px] font-bold text-yellow-800 block mb-1">👑 최고관리자 관제 현장 선택</label>
-                <select id="super-admin-site-select" class="w-full text-xs border border-yellow-300 rounded p-2 bg-white font-bold">
+                <select id="super-admin-site-select" class="w-full text-xs border border-yellow-300 rounded p-2 bg-white font-bold mb-2">
                     <option value="all">🌐 모든 현장 보기 (통합)</option>
-                    </select>
+                </select>
             </div>
 
             <div class="flex text-sm bg-gray-100 border-b">
@@ -211,9 +194,14 @@
 
                 <div id="admin-tools" class="hidden bg-white p-4 rounded shadow-sm border border-blue-100">
                     <h3 class="font-bold text-blue-800 text-sm mb-2 flex justify-between">관리자 도구</h3>
-                    <button id="btn-manage-sites" onclick="openCreateSiteModal()" class="w-full bg-gray-700 text-white font-bold py-2 rounded text-sm hover:bg-gray-800 mb-2 hidden"><i class="fa-solid fa-building-flag"></i> 현장 생성 및 관리</button>
+                    
+                    <div id="site-mgmt-tools" class="hidden grid grid-cols-2 gap-2 mb-2">
+                        <button onclick="openCreateSiteModal()" class="bg-gray-700 text-white font-bold py-2 rounded text-xs hover:bg-gray-800 flex items-center justify-center gap-1"><i class="fa-solid fa-plus"></i> 현장 생성</button>
+                        <button onclick="openEditSiteModal()" class="bg-gray-200 text-gray-700 font-bold py-2 rounded text-xs hover:bg-gray-300 flex items-center justify-center gap-1"><i class="fa-solid fa-pen"></i> 현장 수정</button>
+                    </div>
+
                     <div id="tool-default" class="space-y-2">
-                        <button id="btn-start-draw" class="w-full bg-blue-50 border border-blue-200 text-blue-700 font-bold py-2 rounded text-sm hover:bg-blue-100">구역 그리기</button>
+                        <button id="btn-start-draw" onclick="startDrawing()" class="w-full bg-blue-50 border border-blue-200 text-blue-700 font-bold py-2 rounded text-sm hover:bg-blue-100"><i class="fa-solid fa-draw-polygon"></i> 구역 그리기</button>
                         <div class="bg-gray-50 p-2 rounded border border-gray-200">
                             <label class="text-xs font-bold text-gray-600 block mb-1">계절 위험 관리</label>
                             <select id="seasonal-risk-select" class="w-full text-xs p-1 border rounded" onchange="updateSeasonalRisk(this.value)">
@@ -226,7 +214,7 @@
                     <div id="tool-drawing" class="hidden space-y-2">
                          <div class="bg-yellow-50 p-2 rounded text-xs text-center border text-yellow-800 font-bold">그리기 모드 ON</div>
                          <button id="btn-finish-draw" class="w-full bg-green-600 text-white font-bold py-2 rounded text-sm">완료</button>
-                         <button id="btn-cancel-draw" class="w-full bg-gray-200 text-gray-600 font-bold py-2 rounded text-sm">취소</button>
+                         <button id="btn-cancel-draw" onclick="cancelDrawing()" class="w-full bg-gray-200 text-gray-600 font-bold py-2 rounded text-sm">취소</button>
                     </div>
                 </div>
 
@@ -247,7 +235,6 @@
         <div class="flex-1 relative bg-gray-200">
             <div id="map" class="h-full w-full outline-none"></div>
             <button id="btn-menu-toggle" class="absolute top-4 left-4 z-[500] bg-white p-3 rounded shadow md:hidden"><i class="fa-solid fa-bars"></i></button>
-            
             <div class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/90 px-4 py-2 rounded-full shadow-lg z-[500] text-xs font-bold text-gray-700 border whitespace-nowrap flex flex-col items-center">
                 <div class="flex flex-col items-center gap-1">
                     <div class="flex items-center gap-2">
@@ -270,15 +257,29 @@
 
     <div id="createSiteModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2200] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-lg p-6 w-full max-w-sm">
-            <h3 class="text-lg font-bold mb-4">새 현장 생성</h3>
-            <input type="text" id="new-site-name" placeholder="현장 이름 (예: 1공구)" class="w-full border p-2 rounded mb-3">
-            <div class="flex gap-2"><button onclick="createNewSite()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">생성</button><button onclick="document.getElementById('createSiteModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">취소</button></div>
+            <h3 class="text-lg font-bold mb-4" id="site-modal-title">새 현장 생성</h3>
+            <input type="hidden" id="edit-site-id">
+            <input type="text" id="new-site-name" placeholder="현장 이름" class="w-full border p-2 rounded mb-3">
+            <div id="site-delete-wrapper" class="hidden mb-3"><button onclick="deleteCurrentSite()" class="w-full bg-red-100 text-red-600 py-2 rounded font-bold border border-red-200">이 현장 삭제</button></div>
+            <div class="flex gap-2"><button onclick="saveSiteData()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">저장</button><button onclick="document.getElementById('createSiteModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">취소</button></div>
         </div>
     </div>
 
     <div id="zoneModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2000] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl">
-            <h3 class="text-lg font-bold mb-4">새 구역 저장</h3>
+            <h3 class="text-lg font-bold mb-4" id="zone-modal-title">새 구역 저장</h3>
+            <input type="hidden" id="editing-zone-id">
+            
+            <div class="mb-3">
+                <label class="text-xs font-bold text-gray-600 block mb-1">구역 유형</label>
+                <select id="zone-type" class="w-full border p-2 rounded bg-white">
+                    <option value="boundary">🏗️ 현장 경계 (Site Boundary)</option>
+                    <option value="normal" selected>🟦 일반 작업 구역</option>
+                    <option value="danger">🟥 위험/제한 구역</option>
+                </select>
+                <p id="zone-type-info" class="text-[10px] text-blue-500 mt-1 hidden">💡 이 현장의 첫 구역이므로 '현장 경계'로 자동 설정됩니다.</p>
+            </div>
+
             <input type="text" id="zone-name" placeholder="구역 이름" class="w-full border p-2 rounded mb-3">
             <div class="bg-gray-50 p-3 rounded border border-gray-200 mb-3">
                 <label class="text-xs font-bold text-gray-600 block mb-2">높이 설정 (3D)</label>
@@ -287,7 +288,6 @@
                     <input type="number" id="zone-alt-max" value="500" class="border w-16 text-center rounded p-1 text-sm" placeholder="최대"><span class="text-xs">m</span>
                 </div>
             </div>
-            <div class="flex items-center gap-2 mb-3 bg-red-50 p-2 rounded"><input type="checkbox" id="zone-is-confined" class="w-4 h-4 text-red-600 rounded"><label for="zone-is-confined" class="text-sm font-bold text-red-700">위험 구역 (알림)</label></div>
             <div class="flex gap-2"><button onclick="saveZone()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">저장</button><button onclick="document.getElementById('zoneModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">취소</button></div>
         </div>
     </div>
@@ -296,13 +296,11 @@
         <div class="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl overflow-y-auto max-h-[80vh]">
             <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-address-card text-blue-600"></i> 근로자 정보 관리</h3>
             <input type="hidden" id="edit-user-id">
-            
             <div class="space-y-3">
                 <div id="super-admin-user-site-area" class="bg-yellow-50 p-3 rounded border border-yellow-200 hidden">
                     <label class="text-xs font-bold text-yellow-800 block mb-1">👑 소속 현장 이동 (최고관리자용)</label>
                     <select id="edit-user-site-select" class="w-full border p-2 rounded text-sm bg-white font-bold"></select>
                 </div>
-
                 <div class="bg-blue-50 p-3 rounded border border-blue-100">
                     <label class="text-xs font-bold text-blue-800 block mb-1">📋 작업 구역 지정</label>
                     <input type="text" id="edit-assigned-area" class="w-full border p-2 rounded text-sm bg-white" placeholder="예: A동 2층">
@@ -392,13 +390,16 @@
         let currentAltitude = 0;
         let isOutOfRange = false, isFirstGPSFix = true;
         let unsubscribers = [];
+        let editingZoneId = null;
+        let siteMap = {}; // Cache for site names
 
-        // Collection Helper
         const getColRef = (name) => collection(db, 'artifacts', appId, 'public', 'data', name);
+        // ACL Helpers
         const isManager = (role) => ['super_admin', 'admin', 'safety', 'health', 'supervisor'].includes(role);
-        const isSiteAdmin = (role) => ['super_admin', 'admin', 'safety', 'health'].includes(role);
+        const isSiteAdmin = (role) => ['super_admin', 'admin', 'safety', 'health'].includes(role); // Delete & Full Access
+        const canCreateZone = (role) => isManager(role);
+        const canDeleteZone = (role) => isSiteAdmin(role);
 
-        // Wake Lock
         async function requestWakeLock() {
             try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } 
             catch (err) { console.warn('Wake Lock failed', err); }
@@ -411,7 +412,6 @@
         document.addEventListener('click', enableNoSleep, { once: true });
         document.addEventListener('touchstart', enableNoSleep, { once: true });
 
-        // Init
         async function initApp() {
              try {
                 await signInAnonymously(auth);
@@ -445,18 +445,17 @@
                 const sel = document.getElementById(elementId);
                 const currentVal = sel.value;
                 sel.innerHTML = '<option value="" disabled selected>현장 선택</option>';
-                // Add 'all' option if this is the super admin selector
                 if(elementId === 'super_admin_site_select') sel.innerHTML += '<option value="all">🌐 모든 현장 보기 (통합)</option>';
                 
                 snap.forEach(d => {
                     const s = d.data();
+                    siteMap[d.id] = s.name; // Cache name
                     sel.innerHTML += `<option value="${d.id}">${s.name}</option>`;
                 });
                 if(currentVal) sel.value = currentVal;
             });
         }
 
-        // Auth Logic
         window.handleLogin = async () => {
             const id = document.getElementById('login-id').value;
             const pw = document.getElementById('login-pw').value;
@@ -479,14 +478,12 @@
             document.getElementById('main-dashboard').classList.remove('hidden');
             document.getElementById('user-display').innerText = `${currentUser.name} (${getRoleName(currentUser.role)})`;
             
-            // [권한별 UI 설정]
             if(isManager(currentUser.role)) {
                 document.getElementById('admin-tools').classList.remove('hidden');
                 document.getElementById('tab-users').classList.remove('hidden');
             }
             if(currentUser.role === 'super_admin') {
-                document.getElementById('btn-manage-sites').classList.remove('hidden');
-                // 최고관리자용 현장 선택 드롭다운 표시
+                document.getElementById('site-mgmt-tools').classList.remove('hidden');
                 document.getElementById('super-admin-controls').classList.remove('hidden');
                 loadSuperAdminSiteSelector();
             }
@@ -494,7 +491,7 @@
 
             enableNoSleep();
             initMap();
-            subscribeData(); // 데이터 구독 시작
+            subscribeData(); 
             startGPS();
             setInterval(renderDangerList, 1000);
         }
@@ -505,11 +502,9 @@
             const pw = document.getElementById('reg-pw').value;
             const role = document.getElementById('reg-role').value;
             const siteId = document.getElementById('reg-site').value;
-            if(!id||!name||!pw||!siteId) return alert("모든 정보 입력 필요 (현장 필수)");
-            
+            if(!id||!name||!pw||!siteId) return alert("모든 정보 입력 필요");
             const q = query(getColRef('users'), where('id', '==', id));
             if(!(await getDocs(q)).empty) return alert("ID 중복");
-            
             await addDoc(getColRef('users'), { id, name, pw, role, siteId, approved: false });
             alert("신청 완료. 관리자 승인 대기"); switchAuth('login');
         }
@@ -518,22 +513,18 @@
              document.getElementById('form-signup').classList.toggle('hidden', mode === 'login');
         }
 
-        // [New] Super Admin Logic
         function loadSuperAdminSiteSelector() {
             const sel = document.getElementById('super-admin-site-select');
-            // Populate sites
             onSnapshot(getColRef('sites'), (snap) => {
                 sel.innerHTML = '<option value="all">🌐 모든 현장 보기 (통합)</option>';
                 snap.forEach(d => {
                     sel.innerHTML += `<option value="${d.id}">${d.data().name}</option>`;
                 });
             });
-            
-            // Change Event
             sel.onchange = (e) => {
-                currentSiteId = e.target.value; // 컨텍스트 변경
-                subscribeData(); // 데이터 재구독 (기존 구독 취소 포함)
-                alert(`관제 현장이 변경되었습니다: ${sel.options[sel.selectedIndex].text}`);
+                currentSiteId = e.target.value; 
+                subscribeData(); 
+                alert(`관제 현장이 변경되었습니다.`);
             };
         }
 
@@ -545,13 +536,10 @@
             map.on('click', (e) => { if(isDrawing) addDrawingPoint(e.latlng); });
         }
 
-        // [Core] Data Subscription - Handles Filtering
         function subscribeData() {
-            // Unsubscribe existing listeners to prevent memory leaks and mixed data
             unsubscribers.forEach(unsub => unsub());
             unsubscribers = [];
             
-            // Clear Map
             mapLayers.zones.forEach(l => map.removeLayer(l)); mapLayers.zones = [];
             mapLayers.users.forEach(l => map.removeLayer(l)); mapLayers.users = [];
             activeWorkers = [];
@@ -569,47 +557,73 @@
                     const z = { id: doc.id, ...doc.data() };
                     if(typeof z.points === 'string') z.points = JSON.parse(z.points);
                     zones.push(z);
-                    const color = z.isConfined ? '#ef4444' : '#3b82f6';
-                    const poly = L.polygon(z.points, { color, fillColor: color, fillOpacity: 0.15, weight: 2 }).addTo(map);
+                    
+                    // Visual Style based on Type
+                    let color = '#3b82f6'; // normal (blue)
+                    let dashArray = null;
+                    let fillOpacity = 0.15;
+                    
+                    if(z.type === 'boundary') {
+                        color = '#000000'; // Black
+                        dashArray = '10, 10';
+                        fillOpacity = 0.05;
+                    } else if (z.type === 'danger' || z.isConfined) {
+                        color = '#ef4444'; // Red
+                    }
+
+                    const poly = L.polygon(z.points, { color, fillColor: color, fillOpacity, weight: 2, dashArray }).addTo(map);
                     poly.bindTooltip(z.name);
+                    
+                    // Allow clicking polygon to edit if permission allows
+                    if(canCreateZone(currentUser.role)) {
+                        poly.on('click', () => openZoneEdit(z));
+                    }
                     mapLayers.zones.push(poly);
                     
+                    // List Item
                     const div = document.createElement('div');
                     div.className = "flex justify-between p-2 border rounded hover:bg-gray-50 cursor-pointer items-center mb-1";
+                    
                     let btns = '';
-                    if(isSiteAdmin(currentUser.role)) btns = `<div class="flex gap-1"><button onclick="window.deleteZone('${z.id}')" class="text-gray-400 hover:text-red-500 p-1"><i class="fa-solid fa-trash"></i></button></div>`;
-                    div.innerHTML = `<div onclick="map.fitBounds([${z.points.map(p=>`[${p[0]},${p[1]}]`).join(',')}])" class="flex-1"><span class="font-bold ${z.isConfined?'text-red-500':'text-blue-500'}">${z.name}</span><div class="text-[10px] text-gray-500">H: ${z.minAlt}~${z.maxAlt}m</div></div>${btns}`;
+                    if(canDeleteZone(currentUser.role)) {
+                        btns += `<button onclick="window.deleteZone('${z.id}')" class="text-gray-400 hover:text-red-500 p-1"><i class="fa-solid fa-trash"></i></button>`;
+                    } else if (canCreateZone(currentUser.role)) { // Supervisor
+                         btns += `<button onclick='openZoneEdit(${JSON.stringify(z).replace(/'/g, "&#39;")})' class="text-gray-400 hover:text-blue-500 p-1"><i class="fa-solid fa-pen"></i></button>`;
+                    }
+
+                    let siteNameDisplay = '';
+                    if(currentSiteId === 'all') {
+                        siteNameDisplay = `<span class="text-[10px] bg-gray-200 px-1 rounded text-gray-600 mr-1">${siteMap[z.siteId] || 'Unknown'}</span>`;
+                    }
+                    
+                    div.innerHTML = `<div onclick="map.fitBounds([${z.points.map(p=>`[${p[0]},${p[1]}]`).join(',')}])" class="flex-1 text-left">
+                        ${siteNameDisplay}
+                        <span class="font-bold ${z.type==='danger'?'text-red-500':(z.type==='boundary'?'text-black':'text-blue-500')}">${z.name}</span>
+                        <div class="text-[10px] text-gray-500">H: ${z.minAlt}~${z.maxAlt}m</div></div>
+                        <div class="flex gap-1">${btns}</div>`;
                     listEl.appendChild(div);
                 });
             }));
 
-            // 2. Workers (Filtered)
+            // 2. Workers
             let qWorker = getColRef('workers');
             if(currentSiteId !== 'all') qWorker = query(qWorker, where('siteId', '==', currentSiteId));
-
             unsubscribers.push(onSnapshot(qWorker, (snap) => {
                 mapLayers.users.forEach(m => map.removeLayer(m)); mapLayers.users = []; activeWorkers = [];
-                
                 snap.forEach(doc => {
                     const w = doc.data();
                     const isMe = (w.id === currentUser.id);
-                    if(Date.now() - w.lastUpdate > 300000) return; // 5분 미활동 제외
-                    
-                    // Visibility Check
+                    if(Date.now() - w.lastUpdate > 300000) return; 
                     if(!w.isVisible && !isMe) return;
-
                     activeWorkers.push(w);
 
                     let color = '#2563eb';
                     if (w.role === 'super_admin' || w.role === 'admin') color = '#f97316';
                     else if (w.role === 'safety') color = '#10b981';
                     else if (w.role === 'health') color = '#ec4899';
-                    
                     if(w.isSOS) color = '#ef4444';
 
                     const marker = L.circleMarker([w.lat, w.lng], { radius: 6, color: color, fillColor: color, fillOpacity: 0.7 }).addTo(map);
-                    
-                    // SOS Ring
                     if(w.isSOS) {
                         const ring = L.divIcon({ className: 'sos-marker-ring', iconSize: [40,40], iconAnchor: [20,20] });
                         L.marker([w.lat, w.lng], { icon: ring }).addTo(map);
@@ -617,7 +631,6 @@
                         const ring = L.divIcon({ className: 'danger-zone-ring', iconSize: [40,40], iconAnchor: [20,20] });
                         L.marker([w.lat, w.lng], { icon: ring }).addTo(map);
                     }
-
                     let popup = `<b>${w.name}</b> <span class="text-xs text-gray-500">(${getRoleName(w.role)})</span>`;
                     marker.bindPopup(popup);
                     mapLayers.users.push(marker);
@@ -625,24 +638,20 @@
                 renderDangerList(); updateStats(); checkSOS();
             }));
 
-            // 3. User Approvals (Filtered)
+            // 3. User Approvals
             if(isSiteAdmin(currentUser.role)) {
                 let qUsers = getColRef('users');
                 if(currentSiteId !== 'all') qUsers = query(qUsers, where('siteId', '==', currentSiteId));
-                
                 unsubscribers.push(onSnapshot(qUsers, (snap) => {
                     const pList = document.getElementById('pending-list');
                     const aList = document.getElementById('approved-list');
                     pList.innerHTML = ''; aList.innerHTML = '';
-                    
                     snap.forEach(doc => {
                         const u = { ...doc.data(), docId: doc.id };
                         if(u.role === 'super_admin') return; 
-                        
                         const item = document.createElement('div');
                         item.className = "bg-white p-2 border rounded mb-1 flex justify-between items-center";
                         item.innerHTML = `<div><span class="font-bold text-gray-700">${u.name}</span> <span class="text-xs text-blue-500">(${getRoleName(u.role)})</span></div>`;
-                        
                         const actions = document.createElement('div');
                         if(!u.approved) {
                              const btn = document.createElement('button'); btn.innerText = "승인"; btn.className = "text-blue-600 font-bold mr-2";
@@ -655,11 +664,7 @@
                                  btn.onclick = () => deleteUser(u.docId);
                                  actions.appendChild(btn);
                              }
-                             // Open Modal to edit
-                             item.onclick = (e) => {
-                                 if(e.target.tagName === 'BUTTON' || e.target.parentElement.tagName === 'BUTTON') return;
-                                 window.openInfoModal(u);
-                             };
+                             item.onclick = (e) => { if(e.target.tagName !== 'BUTTON') window.openInfoModal(u); };
                              aList.appendChild(item);
                         }
                         item.appendChild(actions);
@@ -668,73 +673,147 @@
             }
         }
 
-        // [SOS Logic]
         window.triggerSOS = async () => {
             if(!currentUser) return;
             const btn = document.getElementById('btn-sos');
             const isSOSNow = btn.classList.contains('active');
-            
-            // Toggle Visuals
-            if(!isSOSNow) {
-                btn.classList.add('active');
-                showToast("🆘 구조 요청(SOS)을 전송합니다!", "danger");
-            } else {
-                btn.classList.remove('active');
-                showToast("SOS 상황을 해제합니다.", "info");
-            }
-
-            // Update Database
+            if(!isSOSNow) { btn.classList.add('active'); showToast("🆘 구조 요청(SOS)을 전송합니다!", "danger"); } 
+            else { btn.classList.remove('active'); showToast("SOS 상황을 해제합니다.", "info"); }
             await updateDoc(doc(getColRef('workers'), currentUser.id), { isSOS: !isSOSNow });
         };
-
         function checkSOS() {
-            // Find anyone in activeWorkers who has isSOS true
             const sosWorkers = activeWorkers.filter(w => w.isSOS);
             if(sosWorkers.length > 0) {
-                // If it's ME, don't show the alert (I know I pressed it)
                 const others = sosWorkers.filter(w => w.id !== currentUser.id);
-                if(others.length > 0) {
-                    showToast(`🚨 ${others.map(u=>u.name).join(', ')} 님이 구조 요청 중입니다!`, "danger");
-                }
+                if(others.length > 0) showToast(`🚨 ${others.map(u=>u.name).join(', ')} 님이 구조 요청 중입니다!`, "danger");
             }
         }
 
-        // Site & Zone Mgmt
-        window.openCreateSiteModal = () => document.getElementById('createSiteModal').classList.remove('hidden');
-        window.createNewSite = async () => {
-            const name = document.getElementById('new-site-name').value;
-            if(!name) return;
-            await addDoc(getColRef('sites'), { name });
-            document.getElementById('createSiteModal').classList.add('hidden');
-            alert('현장이 생성되었습니다.');
+        // --- Site Mgmt ---
+        window.openCreateSiteModal = () => {
+             document.getElementById('site-modal-title').innerText = "새 현장 생성";
+             document.getElementById('edit-site-id').value = "";
+             document.getElementById('new-site-name').value = "";
+             document.getElementById('site-delete-wrapper').classList.add('hidden');
+             document.getElementById('createSiteModal').classList.remove('hidden');
         };
-        window.saveZone = async () => {
-            if(!isManager(currentUser.role)) return alert('권한 없음');
-            if(currentSiteId === 'all') return alert("전체 관제 모드에서는 구역을 생성할 수 없습니다. 특정 현장으로 전환하세요.");
+        window.openEditSiteModal = () => {
+             if(currentSiteId === 'all') return alert("수정할 개별 현장을 선택해주세요.");
+             const siteName = siteMap[currentSiteId];
+             document.getElementById('site-modal-title').innerText = "현장 정보 수정";
+             document.getElementById('edit-site-id').value = currentSiteId;
+             document.getElementById('new-site-name').value = siteName;
+             document.getElementById('site-delete-wrapper').classList.remove('hidden');
+             document.getElementById('createSiteModal').classList.remove('hidden');
+        };
+        window.saveSiteData = async () => {
+             const id = document.getElementById('edit-site-id').value;
+             const name = document.getElementById('new-site-name').value;
+             if(!name) return;
+             if(id) { await updateDoc(doc(getColRef('sites'), id), { name }); alert("수정 완료"); }
+             else { await addDoc(getColRef('sites'), { name }); alert("생성 완료"); }
+             document.getElementById('createSiteModal').classList.add('hidden');
+        };
+        window.deleteCurrentSite = async () => {
+             const id = document.getElementById('edit-site-id').value;
+             if(confirm("정말 이 현장을 삭제하시겠습니까? 소속된 데이터가 남을 수 있습니다.")) {
+                 await deleteDoc(doc(getColRef('sites'), id));
+                 alert("삭제되었습니다.");
+                 document.getElementById('createSiteModal').classList.add('hidden');
+                 document.getElementById('super-admin-site-select').value = 'all';
+                 currentSiteId = 'all'; subscribeData();
+             }
+        };
+
+        // --- Zone Drawing & Mgmt ---
+        window.startDrawing = () => { 
+            if(!canCreateZone(currentUser.role)) return alert("권한이 없습니다.");
+            if(currentSiteId === 'all') return alert("전체 관제 모드에서는 구역 생성이 불가능합니다. 특정 현장을 선택하세요.");
+            isDrawing = true; drawingPoints = []; 
+            document.getElementById('tool-default').classList.add('hidden'); 
+            document.getElementById('tool-drawing').classList.remove('hidden'); 
+        };
+        window.cancelDrawing = () => { 
+            isDrawing = false; 
+            document.getElementById('tool-default').classList.remove('hidden'); 
+            document.getElementById('tool-drawing').classList.add('hidden'); 
+            mapLayers.temp.forEach(l=>map.removeLayer(l)); mapLayers.temp=[]; 
+        };
+        window.addDrawingPoint = (latlng) => { 
+            drawingPoints.push([latlng.lat, latlng.lng]); 
+            const m = L.circleMarker(latlng, {radius:4}).addTo(map); 
+            mapLayers.temp.push(m); 
+        };
+        document.getElementById('btn-finish-draw').onclick = () => { 
+            if(drawingPoints.length<3) return alert("3점 이상"); 
+            editingZoneId = null; // New Zone
+            document.getElementById('zone-modal-title').innerText = "새 구역 저장";
+            document.getElementById('zone-name').value = "";
             
+            // Auto Select Site Boundary if first zone
+            const hasZones = zones.length > 0;
+            const typeSelect = document.getElementById('zone-type');
+            const infoText = document.getElementById('zone-type-info');
+            
+            if(!hasZones) {
+                typeSelect.value = 'boundary';
+                infoText.classList.remove('hidden');
+            } else {
+                typeSelect.value = 'normal';
+                infoText.classList.add('hidden');
+            }
+            
+            document.getElementById('zoneModal').classList.remove('hidden'); 
+        };
+
+        window.openZoneEdit = (z) => {
+            if(!canCreateZone(currentUser.role)) return; // Double check
+            editingZoneId = z.id;
+            drawingPoints = z.points; // Keep existing points
+            document.getElementById('zone-modal-title').innerText = "구역 정보 수정";
+            document.getElementById('zone-name').value = z.name;
+            document.getElementById('zone-type').value = z.type || 'normal';
+            document.getElementById('zone-alt-min').value = z.minAlt;
+            document.getElementById('zone-alt-max').value = z.maxAlt;
+            document.getElementById('zone-type-info').classList.add('hidden');
+            document.getElementById('zoneModal').classList.remove('hidden');
+        };
+
+        window.saveZone = async () => {
             const name = document.getElementById('zone-name').value;
+            const type = document.getElementById('zone-type').value;
             const minAlt = document.getElementById('zone-alt-min').value;
             const maxAlt = document.getElementById('zone-alt-max').value;
-            const isConfined = document.getElementById('zone-is-confined').checked;
             
-            await addDoc(getColRef('zones'), { name, points: JSON.stringify(drawingPoints), isConfined, minAlt: parseInt(minAlt), maxAlt: parseInt(maxAlt), siteId: currentSiteId });
+            const zoneData = { 
+                name, 
+                points: JSON.stringify(drawingPoints), 
+                type,
+                isConfined: (type === 'danger'),
+                minAlt: parseInt(minAlt), 
+                maxAlt: parseInt(maxAlt), 
+                siteId: currentSiteId 
+            };
+            
+            if(editingZoneId) {
+                // Update
+                // If Supervisor, they cannot edit 'site boundary' created by Admin? (Optional logic, currently allowed)
+                await updateDoc(doc(getColRef('zones'), editingZoneId), zoneData);
+            } else {
+                // Create
+                await addDoc(getColRef('zones'), zoneData);
+            }
+            
             cancelDrawing();
             document.getElementById('zoneModal').classList.add('hidden');
         };
 
-        window.startDrawing = () => { isDrawing = true; drawingPoints = []; document.getElementById('tool-default').classList.add('hidden'); document.getElementById('tool-drawing').classList.remove('hidden'); };
-        window.cancelDrawing = () => { isDrawing = false; document.getElementById('tool-default').classList.remove('hidden'); document.getElementById('tool-drawing').classList.add('hidden'); mapLayers.temp.forEach(l=>map.removeLayer(l)); mapLayers.temp=[]; };
-        window.addDrawingPoint = (latlng) => { drawingPoints.push([latlng.lat, latlng.lng]); const m = L.circleMarker(latlng, {radius:4}).addTo(map); mapLayers.temp.push(m); };
-        document.getElementById('btn-finish-draw').onclick = () => { if(drawingPoints.length<3) return alert("3점 이상"); document.getElementById('zoneModal').classList.remove('hidden'); };
         window.deleteZone = async (id) => { if(confirm("삭제?")) await deleteDoc(doc(getColRef('zones'), id)); };
-
-        // User Mgmt
         window.deleteUser = async (id) => { if(confirm("삭제?")) await deleteDoc(doc(getColRef('users'), id)); };
         window.approveUser = async (id) => await updateDoc(doc(getColRef('users'), id), { approved: true });
         
-        // [MODIFIED] Open Info Modal (Support Site Change for Super Admin)
         window.openInfoModal = (u) => {
-            document.getElementById('edit-user-id').value = u.docId; // Use docId for updates
+            document.getElementById('edit-user-id').value = u.docId;
             document.getElementById('edit-job').value = u.job || '';
             document.getElementById('edit-equip').value = u.equip || '';
             document.getElementById('edit-assigned-area').value = u.assignedArea || '';
@@ -742,13 +821,11 @@
             document.getElementById('edit-health-grade').value = u.healthGrade || 'A';
             document.getElementById('edit-is-elderly').checked = u.isElderly || false;
 
-            // Super Admin only: Enable Site Switching
             const siteArea = document.getElementById('super-admin-user-site-area');
             const siteSelect = document.getElementById('edit-user-site-select');
             
             if(currentUser.role === 'super_admin') {
                 siteArea.classList.remove('hidden');
-                // Populate site options again to be sure
                 siteSelect.innerHTML = '';
                 getDocs(getColRef('sites')).then(snap => {
                      snap.forEach(d => {
@@ -762,10 +839,8 @@
             } else {
                 siteArea.classList.add('hidden');
             }
-
             document.getElementById('userInfoModal').classList.remove('hidden');
         };
-
         window.saveUserInfo = async () => {
             const uid = document.getElementById('edit-user-id').value;
             const data = {
@@ -776,18 +851,14 @@
                 healthGrade: document.getElementById('edit-health-grade').value,
                 isElderly: document.getElementById('edit-is-elderly').checked
             };
-            
-            // If Super Admin changed the site
             if(currentUser.role === 'super_admin') {
                 const newSiteId = document.getElementById('edit-user-site-select').value;
                 if(newSiteId) data.siteId = newSiteId;
             }
-
             await updateDoc(doc(getColRef('users'), uid), data);
             document.getElementById('userInfoModal').classList.add('hidden');
         };
 
-        // GPS Logic
         async function startGPS() {
             document.getElementById('status-msg').innerText = "GPS 연결 시도 중...";
             if (window.Capacitor) {
@@ -802,7 +873,6 @@
                 } catch(e) { console.error("Native GPS Error", e); startWebGPS(); }
             } else { startWebGPS(); }
         }
-
         function startWebGPS() {
             if (!navigator.geolocation) { alert("이 기기는 GPS를 지원하지 않습니다."); return; }
             gpsWatchId = navigator.geolocation.watchPosition((pos) => {
@@ -812,15 +882,11 @@
                 document.getElementById('status-msg').innerText = "GPS 신호 약함 🔴";
             }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
         }
-
         function handlePositionUpdate(coords) {
             const lat = coords.latitude;
             const lng = coords.longitude;
             const alt = coords.altitude !== null ? Math.round(coords.altitude) : currentAltitude;
-            
             if(isFirstGPSFix) { map.setView([lat, lng], 18); isFirstGPSFix=false; }
-            
-            // Logic: Calculate if inside zone or out of range
             let inDanger = false; let zoneName = null; let inAnyZone2D = false;
             for(const z of zones) {
                 if(isPointInPolygon([lat, lng], z.points)) {
@@ -831,92 +897,45 @@
                     }
                 }
             }
-            
             const dist = getDistanceFromLatLonInKm(lat, lng, SITE_CENTER.lat, SITE_CENTER.lng);
             const isOut = (dist > MAX_DISTANCE_KM) && !inAnyZone2D;
-            
-            if (isOut) { 
-                if(!isOutOfRange) { isOutOfRange = true; showToast("🚫 작업 반경(100m) 이탈", "warning"); } 
-            } else { 
-                if(isOutOfRange) { isOutOfRange = false; showToast("✅ 복귀 완료", "success"); } 
-            }
+            if (isOut) { if(!isOutOfRange) { isOutOfRange = true; showToast("🚫 작업 반경 이탈", "warning"); } } 
+            else { if(isOutOfRange) { isOutOfRange = false; showToast("✅ 복귀 완료", "success"); } }
             document.getElementById('zone-status-display').innerText = zoneName ? `구역: ${zoneName}` : "구역: 없음";
-
-            // Update My Position to DB
-            // NOTE: If Super Admin is viewing 'all', we still update their real position with their assigned siteId (which is 'all' or specific).
-            // Usually Super Admin shouldn't appear as a dot on all maps, but for now we keep simple logic.
             const userRef = doc(getColRef('workers'), currentUser.id);
             setDoc(userRef, {
                 id: currentUser.id, name: currentUser.name, role: currentUser.role, siteId: currentUser.siteId,
-                lat: lat, lng: lng, alt: alt,
-                lastUpdate: Date.now(), 
-                isVisible: !isOut,
-                dangerEntryTime: inDanger ? Date.now() : null,
-                currentZoneName: zoneName,
-                // Do not overwrite isSOS here, handled by triggerSOS
+                lat: lat, lng: lng, alt: alt, lastUpdate: Date.now(), isVisible: !isOut,
+                dangerEntryTime: inDanger ? Date.now() : null, currentZoneName: zoneName
             }, { merge: true });
         }
-
         window.refreshGPS = () => {
              if (window.Capacitor && gpsWatchId) Capacitor.Plugins.Geolocation.clearWatch({ id: gpsWatchId });
              else if(gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
              gpsWatchId = null; setTimeout(() => { startGPS(); }, 500);
         }
-
-        // Utils
         function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) { var R = 6371; var dLat = deg2rad(lat2-lat1); var dLon = deg2rad(lon2-lon1); var a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2); var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); return R * c; }
         function deg2rad(deg) { return deg * (Math.PI/180); }
         function isPointInPolygon(p, vs) { var x = p[0], y = p[1]; var inside = false; for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) { var xi = vs[i][0], yi = vs[i][1]; var xj = vs[j][0], yj = vs[j][1]; var intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi); if (intersect) inside = !inside; } return inside; }
         function getRoleName(r) { if(r==='super_admin') return '최고관리자'; if(r==='admin') return '현장소장'; if(r==='safety') return '안전관리자'; if(r==='health') return '보건관리자'; if(r==='supervisor') return '관리감독자'; if(r==='guard') return '경비'; return '근로자'; }
-        
         function updateStats() { 
             let total = 0, danger = 0, sos = 0, active = 0, out = 0;
-            activeWorkers.forEach(w => {
-                total++;
-                if(w.isSOS) sos++;
-                if(w.isVisible) active++; else out++;
-                if(w.dangerEntryTime) danger++;
-            });
+            activeWorkers.forEach(w => { total++; if(w.isSOS) sos++; if(w.isVisible) active++; else out++; if(w.dangerEntryTime) danger++; });
             document.getElementById('stat-total').innerText = total; document.getElementById('stat-active').innerText = active; document.getElementById('stat-out').innerText = out; document.getElementById('stat-danger').innerText = danger;
             document.getElementById('mobile-stat-total').innerText = total; document.getElementById('mobile-stat-active').innerText = active; document.getElementById('mobile-stat-out').innerText = out; document.getElementById('mobile-stat-danger').innerText = danger;
         }
-
         function renderDangerList() {
-             const list = document.getElementById('danger-worker-list');
-             const panel = document.getElementById('danger-status-panel');
-             const dangers = activeWorkers.filter(w => w.dangerEntryTime);
-             list.innerHTML = '';
-             if(dangers.length > 0) {
-                 panel.classList.remove('hidden');
-                 dangers.forEach(w => {
-                     const sec = Math.floor((Date.now() - w.dangerEntryTime)/1000);
-                     const d = document.createElement('div'); d.className = "flex justify-between items-center bg-red-50 p-1 rounded";
-                     d.innerHTML = `<span>${w.name} (${w.currentZoneName||'위험구역'})</span><span class="font-bold text-red-600">${sec}초</span>`;
-                     list.appendChild(d);
-                 });
-             } else panel.classList.add('hidden');
+             const list = document.getElementById('danger-worker-list'); const panel = document.getElementById('danger-status-panel'); const dangers = activeWorkers.filter(w => w.dangerEntryTime);
+             list.innerHTML = ''; if(dangers.length > 0) { panel.classList.remove('hidden'); dangers.forEach(w => { const sec = Math.floor((Date.now() - w.dangerEntryTime)/1000); const d = document.createElement('div'); d.className = "flex justify-between items-center bg-red-50 p-1 rounded"; d.innerHTML = `<span>${w.name} (${w.currentZoneName||'위험구역'})</span><span class="font-bold text-red-600">${sec}초</span>`; list.appendChild(d); }); } else panel.classList.add('hidden');
         }
-
         function showToast(msg, type) { const c = document.getElementById('toast-container'); const t = document.createElement('div'); t.className = `toast ${type}`; let icon = 'fa-info-circle text-blue-500'; if(type === 'danger') icon = 'fa-circle-exclamation text-red-500'; else if(type === 'success') icon = 'fa-circle-check text-green-500'; else if(type === 'warning') icon = 'fa-triangle-exclamation text-orange-500'; t.innerHTML = `<i class="fa-solid ${icon}"></i><div><div class="font-bold text-gray-800">알림</div><div class="text-sm text-gray-600">${msg}</div></div>`; c.appendChild(t); setTimeout(()=>t.remove(), 4000); }
-
-        // Event Bindings
-        document.getElementById('btn-login').onclick = handleLogin;
-        document.getElementById('btn-signup').onclick = handleSignup;
-        document.getElementById('tab-login').onclick = () => switchAuth('login');
-        document.getElementById('tab-signup').onclick = () => switchAuth('signup');
-        document.getElementById('alt-slider').oninput = (e) => { currentAltitude = parseInt(e.target.value); document.getElementById('current-alt-display').innerText = `${currentAltitude}m`; };
-        
-        // Sidebar logic
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebar-overlay');
+        document.getElementById('btn-login').onclick = handleLogin; document.getElementById('btn-signup').onclick = handleSignup; document.getElementById('tab-login').onclick = () => switchAuth('login'); document.getElementById('tab-signup').onclick = () => switchAuth('signup'); document.getElementById('alt-slider').oninput = (e) => { currentAltitude = parseInt(e.target.value); document.getElementById('current-alt-display').innerText = `${currentAltitude}m`; };
+        const sidebar = document.getElementById('sidebar'); const overlay = document.getElementById('sidebar-overlay');
         document.getElementById('btn-menu-toggle').onclick = () => { sidebar.classList.remove('-translate-x-full'); overlay.classList.remove('hidden'); };
         const closeSidebar = () => { sidebar.classList.add('-translate-x-full'); overlay.classList.add('hidden'); };
-        document.getElementById('btn-close-sidebar').onclick = closeSidebar;
-        overlay.onclick = closeSidebar;
-        
+        document.getElementById('btn-close-sidebar').onclick = closeSidebar; overlay.onclick = closeSidebar;
         document.getElementById('tab-monitor').onclick = () => { document.getElementById('panel-monitor').classList.remove('hidden'); document.getElementById('panel-users').classList.add('hidden'); document.getElementById('tab-monitor').classList.add('border-b-2','border-blue-500','text-blue-600'); document.getElementById('tab-users').classList.remove('border-b-2','border-blue-500','text-blue-600'); };
         document.getElementById('tab-users').onclick = () => { document.getElementById('panel-monitor').classList.add('hidden'); document.getElementById('panel-users').classList.remove('hidden'); document.getElementById('tab-users').classList.add('border-b-2','border-blue-500','text-blue-600'); document.getElementById('tab-monitor').classList.remove('border-b-2','border-blue-500','text-blue-600'); };
-        
         window.openMyInfoModal = () => { document.getElementById('my-name').value = currentUser.name || ''; document.getElementById('myInfoModal').classList.remove('hidden'); };
         window.saveMyInfo = async () => { const name = document.getElementById('my-name').value; await updateDoc(doc(getColRef('users'), currentUser.id), { name }); currentUser.name = name; document.getElementById('user-display').innerText = `${name} (${getRoleName(currentUser.role)})`; document.getElementById('myInfoModal').classList.add('hidden'); };
     </script>
