@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 (Live)</title>
+    <title>스마트 안전 관제 (Hybrid v9.70)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -20,29 +20,28 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
     <style>
-        body { font-family: 'Noto Sans KR', sans-serif; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Noto Sans KR', sans-serif; user-select: none; }
         .map-container { height: 100vh; width: 100%; z-index: 10; }
-        /* SOS 버튼 스타일 */
         .sos-btn { 
-            position: absolute; bottom: 80px; right: 20px; z-index: 1000; 
-            width: 64px; height: 64px; border-radius: 50%; 
-            background: linear-gradient(135deg, #ef4444, #dc2626); 
+            position: absolute; bottom: 90px; right: 20px; z-index: 1000; 
+            width: 68px; height: 68px; border-radius: 50%; 
+            background: linear-gradient(135deg, #ef4444, #b91c1c); 
             color: white; display: flex; flex-direction: column; 
             align-items: center; justify-content: center; 
-            font-weight: bold; font-size: 12px;
-            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.6); 
-            border: 3px solid white; transition: transform 0.1s;
+            font-weight: bold; font-size: 11px;
+            box-shadow: 0 4px 20px rgba(220, 38, 38, 0.6); 
+            border: 3px solid white; animation: pulse-sos 2s infinite;
         }
+        @keyframes pulse-sos { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
         .sos-btn:active { transform: scale(0.95); }
-        .sos-btn i { font-size: 24px; margin-bottom: 2px; }
         
-        /* 백그라운드 유지용 비디오 (숨김) */
-        #no-sleep-video { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+        /* 백그라운드 생존용 (투명 비디오) */
+        #keep-alive-video { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; }
     </style>
 </head>
 <body class="bg-gray-100 overflow-hidden h-screen w-screen">
 
-    <video id="no-sleep-video" playsinline muted loop>
+    <video id="keep-alive-video" playsinline muted loop>
         <source src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAACAGlzb21pc28yYXZjMQAAAAhmcmVlAAACQm1kYXQAAAGzABAHAAABthADAQAAAB5lbHN0AAAAAAAAAAEAAAABAAAAAAABAAAAAAABAAAAAAOBbW9vdgAAAGxtdmhkAAAAAAAAGNQAABjUAAABAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAh0cmFrAAAAXHRraGQAAAADAAAAGNQAABjUAAAAAQAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAIAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAABAAAAAAABAAAAAAABAAAAAAOibWRpYQAAACBtZGhkAAAAABjUAAAY1AAAAQAAAQAAAAABAFgAAAAAAAhWhGRscgAAAAAAAAAAbWluZgAAABR2bWhkAAAAAQAAAAAAAAAAAAAAJGRpbmYAAAAcZHJlZgAAAAAAAAABAAAADHVybCAAAAABAAADWnN0YmwAAAB5c3RzZAAAAAAAAAABAAAAiWF2YzEAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAQABAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGP//AAAALWF2Y0MBWQAa//8AAAAuZ2RrdRWbCAoBwQAAA+gA8F2D3awEBAQAAAAEAAAAAAQAAAAEAAAACHN0dHMAAAAAAAAAAQAAAAEAAAB4Y3R0cwAAAAAAAAAAAAABAAEAAAAcY3R0cwAAAAAAAAAAAAABAAEAAAAcc3RzYwAAAAAAAAABAAAAAQAAAAEAAAABAAAAFHN6LmEAAAAAAAAAAQAAAAQAAAA0c3RjbwAAAAAAAAABAAAAAAA=" type="video/mp4">
     </video>
 
@@ -50,30 +49,32 @@
         <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md m-4 relative">
             <div class="text-center mb-8">
                 <div class="bg-blue-900 w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-lg">
-                    <i class="fa-solid fa-helmet-safety text-white text-3xl"></i>
+                    <i class="fa-solid fa-satellite-dish text-white text-3xl animate-pulse"></i>
                 </div>
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p id="conn-status" class="text-xs text-blue-500 mt-2 font-bold animate-pulse">● 시스템 연결 중...</p>
-            </div>
-
-            <div class="flex border-b mb-6">
-                <button id="tab-login" class="flex-1 py-3 font-bold text-blue-900 border-b-2 border-blue-900">로그인</button>
-                <button id="tab-signup" class="flex-1 py-3 text-gray-400 hover:text-gray-600">회원가입</button>
+                <p class="text-sm text-gray-500">Hybrid GPS System v9.70</p>
+                <div id="status-bar" class="mt-4 bg-gray-100 rounded-full py-1 px-3 text-xs font-bold text-gray-500 flex justify-center items-center gap-2">
+                    <span id="conn-icon" class="w-2 h-2 rounded-full bg-gray-400"></span>
+                    <span id="conn-text">서버 연결 대기 중...</span>
+                </div>
             </div>
 
             <div id="form-login" class="space-y-4">
-                <input type="text" id="login-id" placeholder="아이디" class="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-900 outline-none">
+                <input type="text" id="login-id" placeholder="아이디" class="w-full border p-3 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-900 transition outline-none">
                 <div class="relative">
-                    <input type="password" id="login-pw" placeholder="비밀번호" class="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-900 outline-none">
-                    <button id="btn-show-pw" class="absolute right-3 top-3.5 text-gray-400"><i class="fa-solid fa-eye"></i></button>
+                    <input type="password" id="login-pw" placeholder="비밀번호" class="w-full border p-3 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-900 transition outline-none">
+                    <button id="btn-show-pw" class="absolute right-3 top-3.5 text-gray-400 hover:text-blue-900"><i class="fa-solid fa-eye"></i></button>
                 </div>
-                <div class="flex items-center gap-2 pt-2">
-                    <input type="checkbox" id="auto-login-check" class="w-4 h-4 rounded text-blue-900">
+                <div class="flex items-center gap-2 pt-1">
+                    <input type="checkbox" id="auto-login-check" class="w-4 h-4 rounded text-blue-900 accent-blue-900">
                     <label for="auto-login-check" class="text-sm text-gray-600">자동 로그인</label>
                 </div>
-                <button id="btn-login" class="w-full bg-blue-900 text-white py-4 rounded-lg font-bold shadow-lg hover:bg-blue-800 transition transform active:scale-95">
-                    접속하기
+                <button id="btn-login" class="w-full bg-blue-900 text-white py-4 rounded-lg font-bold shadow-lg hover:bg-blue-800 transition transform active:scale-95 flex justify-center items-center gap-2">
+                    <span>관제 시작</span> <i class="fa-solid fa-arrow-right"></i>
                 </button>
+                <div class="text-center mt-4">
+                    <button id="btn-to-signup" class="text-sm text-gray-500 hover:text-blue-900 underline">새 계정 만들기</button>
+                </div>
             </div>
 
             <div id="form-signup" class="space-y-4 hidden">
@@ -81,60 +82,69 @@
                 <input type="text" id="reg-name" placeholder="이름 (실명)" class="w-full border p-3 rounded-lg">
                 <input type="password" id="reg-pw" placeholder="비밀번호" class="w-full border p-3 rounded-lg">
                 <div class="border p-2 rounded-lg bg-gray-50">
-                    <label class="text-xs font-bold text-gray-500 pl-1">현장 선택</label>
-                    <select id="reg-site" class="w-full border p-2 rounded bg-white mt-1">
-                        <option value="site1">기본 건설 현장</option>
-                    </select>
+                    <label class="text-xs font-bold text-gray-500 pl-1">소속 현장</label>
+                    <select id="reg-site" class="w-full border p-2 rounded bg-white mt-1"></select>
                 </div>
                 <select id="reg-role" class="w-full border p-3 rounded-lg bg-white">
                     <option value="worker">근로자</option>
                     <option value="admin">현장소장 (관리자)</option>
                     <option value="safety">안전관리자</option>
                 </select>
-                <button id="btn-signup" class="w-full bg-green-600 text-white py-4 rounded-lg font-bold shadow-lg hover:bg-green-700 transition transform active:scale-95">
-                    가입 신청
-                </button>
+                <button id="btn-signup" class="w-full bg-green-600 text-white py-4 rounded-lg font-bold shadow-lg hover:bg-green-700 transition">가입 신청 완료</button>
+                <button id="btn-to-login" class="w-full bg-gray-200 text-gray-600 py-3 rounded-lg font-bold mt-2 hover:bg-gray-300">취소</button>
             </div>
         </div>
     </div>
 
     <div id="main-dashboard" class="hidden h-screen flex flex-col">
         <div class="bg-white px-4 py-3 flex justify-between items-center shadow-md z-20">
-            <div class="flex items-center gap-2">
-                <div class="bg-blue-900 w-8 h-8 rounded flex items-center justify-center text-white"><i class="fa-solid fa-tower-broadcast"></i></div>
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-900 w-9 h-9 rounded-lg flex items-center justify-center text-white shadow"><i class="fa-solid fa-tower-broadcast"></i></div>
                 <div>
-                    <h1 class="font-bold text-gray-800 text-sm">통합 관제실</h1>
-                    <p id="user-display" class="text-[10px] text-gray-500">사용자 확인 중...</p>
+                    <h1 class="font-bold text-gray-800 text-sm leading-tight">통합 관제실</h1>
+                    <div class="flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                        <p id="user-display" class="text-[10px] text-gray-500">접속 확인 중...</p>
+                    </div>
                 </div>
             </div>
-            <button onclick="logout()" class="text-xs bg-gray-100 text-gray-600 px-3 py-2 rounded hover:bg-gray-200 font-bold">
-                <i class="fa-solid fa-right-from-bracket mr-1"></i> 로그아웃
+            <button onclick="logout()" class="text-xs border border-gray-300 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-50 font-bold transition">
+                로그아웃
             </button>
         </div>
 
         <div class="flex-1 relative bg-gray-200">
             <div id="map" class="h-full w-full outline-none"></div>
             
-            <div class="absolute top-4 left-4 right-4 flex justify-center z-[500]">
-                <div class="bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-lg border border-blue-100 flex items-center gap-3">
-                    <div class="flex items-center gap-1">
-                        <span id="gps-dot" class="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></span>
-                        <span class="text-xs font-bold text-gray-600">GPS</span>
+            <div class="absolute top-4 left-4 right-4 z-[500] flex flex-col gap-2 pointer-events-none">
+                <div class="bg-white/95 backdrop-blur px-4 py-3 rounded-xl shadow-lg border border-blue-50 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div id="gps-pulse" class="w-3 h-3 rounded-full bg-gray-300"></div>
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Signal Status</span>
+                            <span id="gps-status-text" class="text-xs font-bold text-gray-600">위치 탐색 중...</span>
+                        </div>
                     </div>
-                    <div class="h-3 w-px bg-gray-300"></div>
-                    <span id="gps-acc" class="text-xs text-gray-500 font-mono">신호 대기중</span>
+                    <div class="text-right">
+                        <span id="gps-acc" class="text-lg font-black text-blue-900 font-mono">--</span>
+                        <span class="text-[10px] text-gray-400">m 오차</span>
+                    </div>
+                </div>
+                
+                <div id="bg-mode-badge" class="hidden self-center bg-black/70 text-white text-[10px] px-3 py-1 rounded-full backdrop-blur flex items-center gap-2">
+                    <i class="fa-solid fa-moon text-yellow-400"></i> 대기모드 방어 작동 중
                 </div>
             </div>
 
             <button onclick="triggerSOS()" class="sos-btn">
-                <i class="fa-solid fa-bell"></i>
+                <i class="fa-solid fa-bell fa-xl mb-1"></i>
                 SOS
             </button>
         </div>
     </div>
 
     <script>
-        // === 1. 설정 및 초기화 ===
+        // === 1. 시스템 설정 ===
         const firebaseConfig = {
             apiKey: "AIzaSyCMWQa-O2m8BB0XHzhXlYfdy3smIsgKs0A",
             authDomain: "smart-safety-monitor-37649.firebaseapp.com",
@@ -150,55 +160,79 @@
         let map, currentUser = null;
         let markers = {}; 
         let watchId = null;
+        let wakeLock = null; // 화면 꺼짐 방지용
+        let lastPositionTime = 0; // GPS 감시용
 
-        // 페이지 로드 시 실행
+        // 페이지 로드
         window.addEventListener('load', () => {
+            initSystem();
+        });
+
+        async function initSystem() {
             try {
                 app = firebase.initializeApp(firebaseConfig);
                 auth = firebase.auth();
                 db = firebase.firestore();
                 
-                // 연결 상태 표시
-                document.getElementById('conn-status').innerText = "● 서버 연결 완료";
-                document.getElementById('conn-status').className = "text-xs text-green-600 mt-2 font-bold";
-                
-                // 자동 로그인 확인
+                // 네트워크 폴링 강제 설정 (연결 끊김 방지)
+                db.settings({ experimentalForceLongPolling: true, merge: true });
+
+                updateStatus("online", "서버 연결 완료");
+                loadSites(); // 현장 목록 불러오기
+
+                // 자동 로그인
                 const saved = localStorage.getItem('savedUser');
                 if(saved) {
-                    try { 
-                        currentUser = JSON.parse(saved); 
-                        startSession(); 
-                    } catch(e) { localStorage.removeItem('savedUser'); }
+                    try { currentUser = JSON.parse(saved); startSession(); } catch(e){}
                 }
-
-                // 현장 목록 로드
-                loadSites();
-
             } catch (e) {
-                document.getElementById('conn-status').innerText = "● 연결 실패: " + e.message;
-                document.getElementById('conn-status').className = "text-xs text-red-500 mt-2 font-bold";
+                updateStatus("error", "연결 실패: " + e.message);
             }
-
-            // UI 이벤트 연결
             setupUI();
-        });
+        }
+
+        // 상태 표시줄 업데이트
+        function updateStatus(state, msg) {
+            const icon = document.getElementById('conn-icon');
+            const text = document.getElementById('conn-text');
+            text.innerText = msg;
+            
+            if(state === 'online') {
+                icon.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
+                text.className = "text-green-600";
+            } else if (state === 'error') {
+                icon.className = "w-2 h-2 rounded-full bg-red-500";
+                text.className = "text-red-500";
+            } else {
+                icon.className = "w-2 h-2 rounded-full bg-gray-400";
+            }
+        }
 
         function setupUI() {
-            // 탭 전환
-            document.getElementById('tab-login').onclick = () => {
+            // 화면 전환
+            const showLogin = () => {
                 document.getElementById('form-login').classList.remove('hidden');
                 document.getElementById('form-signup').classList.add('hidden');
-                document.getElementById('tab-login').className = "flex-1 py-3 font-bold text-blue-900 border-b-2 border-blue-900";
-                document.getElementById('tab-signup').className = "flex-1 py-3 text-gray-400";
+                document.getElementById('tab-login').classList.add('text-blue-900', 'border-blue-900');
+                document.getElementById('tab-login').classList.remove('text-gray-400');
+                document.getElementById('tab-signup').classList.remove('text-blue-900', 'border-blue-900');
+                document.getElementById('tab-signup').classList.add('text-gray-400');
             };
-            document.getElementById('tab-signup').onclick = () => {
+            const showSignup = () => {
                 document.getElementById('form-login').classList.add('hidden');
                 document.getElementById('form-signup').classList.remove('hidden');
-                document.getElementById('tab-signup').className = "flex-1 py-3 font-bold text-blue-900 border-b-2 border-blue-900";
-                document.getElementById('tab-login').className = "flex-1 py-3 text-gray-400";
+                document.getElementById('tab-signup').classList.add('text-blue-900', 'border-blue-900');
+                document.getElementById('tab-signup').classList.remove('text-gray-400');
+                document.getElementById('tab-login').classList.remove('text-blue-900', 'border-blue-900');
+                document.getElementById('tab-login').classList.add('text-gray-400');
             };
 
-            // 비밀번호 보기
+            document.getElementById('tab-login').onclick = showLogin;
+            document.getElementById('tab-signup').onclick = showSignup;
+            document.getElementById('btn-to-signup').onclick = showSignup;
+            document.getElementById('btn-to-login').onclick = showLogin;
+
+            // 비밀번호 토글
             document.getElementById('btn-show-pw').onclick = () => {
                 const pw = document.getElementById('login-pw');
                 pw.type = pw.type === 'password' ? 'text' : 'password';
@@ -208,48 +242,149 @@
             document.getElementById('btn-signup').onclick = handleSignup;
         }
 
-        // === 2. 로그인 로직 (관리자 자동생성 포함) ===
+        // === 2. 핵심: 하이브리드 & 백그라운드 GPS 로직 ===
+        async function startSession() {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('main-dashboard').classList.remove('hidden');
+            document.getElementById('user-display').innerText = `${currentUser.name} (${currentUser.role === 'worker' ? '근로자' : '관리자'})`;
+
+            // 지도 로드
+            if(!map) {
+                map = L.map('map', {zoomControl: false}).setView([37.5665, 126.9780], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            }
+
+            // [중요] 1. 좀비 모드 실행 (화면 꺼짐 방지)
+            activateKeepAlive();
+
+            // [중요] 2. GPS 시작
+            startHybridGPS();
+
+            // 동료 위치 구독
+            subscribeWorkers();
+        }
+
+        // **좀비 모드: 화면이 꺼져도 브라우저를 강제로 깨움**
+        async function activateKeepAlive() {
+            try {
+                // 1. 비디오 재생 (CPU 활성 유지)
+                const video = document.getElementById('keep-alive-video');
+                video.play().then(() => {
+                    console.log("백그라운드 비디오 재생 중");
+                }).catch(e => console.log("비디오 자동재생 차단됨 (터치 필요)"));
+
+                // 2. Wake Lock API (화면 어둡게 유지)
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    document.getElementById('bg-mode-badge').classList.remove('hidden');
+                    console.log("Wake Lock 활성화됨");
+                    
+                    // 풀리면 다시 요청
+                    wakeLock.addEventListener('release', () => {
+                        console.log('Wake Lock 풀림, 재요청');
+                        activateKeepAlive();
+                    });
+                }
+            } catch (err) {
+                console.log(`Wake Lock 실패: ${err.name}, ${err.message}`);
+            }
+        }
+
+        function startHybridGPS() {
+            const options = { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 };
+            
+            // GPS 감시 시작
+            watchId = navigator.geolocation.watchPosition(
+                handlePositionSuccess,
+                handlePositionError,
+                options
+            );
+
+            // [감시견] 15초 동안 위치 업데이트가 없으면 GPS 재시작 (끊김 방지)
+            setInterval(() => {
+                const now = Date.now();
+                if (now - lastPositionTime > 15000) {
+                    console.log("GPS 신호 두절! 재연결 시도...");
+                    navigator.geolocation.getCurrentPosition(handlePositionSuccess, handlePositionError, options);
+                }
+            }, 15000);
+        }
+
+        function handlePositionSuccess(pos) {
+            lastPositionTime = Date.now(); // 마지막 신호 시간 갱신
+            const { latitude, longitude, accuracy } = pos.coords;
+
+            // UI 갱신
+            const pulse = document.getElementById('gps-pulse');
+            const status = document.getElementById('gps-status-text');
+            const acc = document.getElementById('gps-acc');
+
+            pulse.className = "w-3 h-3 rounded-full bg-green-500 animate-ping";
+            status.innerText = "위치 수신 중 (정상)";
+            status.className = "text-xs font-bold text-green-600";
+            acc.innerText = Math.round(accuracy);
+
+            // 내 위치 지도 표시
+            if(map) {
+                // map.panTo([latitude, longitude]); // 너무 자주 움직이면 불편할 수 있어 제거하거나 조건부 사용
+                if(markers['me']) map.removeLayer(markers['me']);
+                markers['me'] = L.circleMarker([latitude, longitude], {
+                    radius: 8, color: '#1e3a8a', fillOpacity: 0.9, weight: 3, fillColor: '#3b82f6'
+                }).addTo(map);
+            }
+
+            // 서버 전송
+            updateMyPosition(latitude, longitude);
+        }
+
+        function handlePositionError(err) {
+            console.warn(`GPS 에러: ${err.message}`);
+            const status = document.getElementById('gps-status-text');
+            const pulse = document.getElementById('gps-pulse');
+            
+            status.innerText = "신호 약함 / 재검색...";
+            status.className = "text-xs font-bold text-red-500";
+            pulse.className = "w-3 h-3 rounded-full bg-red-500";
+        }
+
+        // === 3. 데이터베이스 로직 ===
         async function handleLogin() {
             const id = document.getElementById('login-id').value;
             const pw = document.getElementById('login-pw').value;
             
-            if(!id || !pw) return alert("아이디와 비밀번호를 입력해주세요.");
+            if(!id || !pw) return alert("정보를 입력하세요.");
             
             try {
-                // 익명 인증으로 DB 접근 권한 얻기
                 if (!auth.currentUser) await auth.signInAnonymously();
 
-                // [자동생성] 최고 관리자 계정이 없으면 만듦 (첫 로그인용)
+                // 관리자 자동생성
                 if(id === 'dark584' && pw === 'Rufghs0423!!') {
                     const check = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').where('id', '==', 'dark584').get();
                     if(check.empty) {
                         await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').add({
-                            id: 'dark584', pw: 'Rufghs0423!!', name: '최고 관리자', role: 'super_admin', approved: true, siteId: 'all', createdAt: Date.now()
+                            id: 'dark584', pw: 'Rufghs0423!!', name: '최고 관리자', role: 'super_admin', approved: true, siteId: 'all'
                         });
                     }
                 }
 
-                // 사용자 조회
                 const snapshot = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users')
                     .where('id', '==', id).where('pw', '==', pw).get();
 
-                if (snapshot.empty) return alert("일치하는 계정이 없습니다.");
+                if (snapshot.empty) return alert("계정 정보가 틀립니다.");
 
                 const userData = snapshot.docs[0].data();
                 userData.docId = snapshot.docs[0].id;
 
-                if (!userData.approved) return alert("가입 승인 대기 중입니다. 관리자에게 문의하세요.");
+                if (!userData.approved) return alert("승인 대기 중입니다.");
 
-                // 로그인 성공
                 currentUser = userData;
                 if(document.getElementById('auto-login-check').checked) {
                     localStorage.setItem('savedUser', JSON.stringify(currentUser));
                 }
-
                 startSession();
 
             } catch (error) {
-                alert("로그인 중 오류가 발생했습니다.\n" + error.message);
+                alert("로그인 실패: " + error.message);
             }
         }
 
@@ -260,132 +395,57 @@
             const siteId = document.getElementById('reg-site').value;
             const role = document.getElementById('reg-role').value;
 
-            if(!id || !name || !pw) return alert("모든 정보를 입력해주세요.");
+            if(!id || !name || !pw) return alert("정보를 모두 입력하세요.");
 
             try {
                 if (!auth.currentUser) await auth.signInAnonymously();
-                
                 const check = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').where('id', '==', id).get();
-                if(!check.empty) return alert("이미 사용 중인 아이디입니다.");
+                if(!check.empty) return alert("이미 존재하는 아이디입니다.");
 
                 await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').add({
                     id, name, pw, siteId, role, approved: false, createdAt: Date.now()
                 });
-
-                alert("가입 신청이 완료되었습니다.\n관리자 승인 후 로그인 가능합니다.");
-                document.getElementById('tab-login').click();
-            } catch (error) {
-                alert("가입 오류: " + error.message);
-            }
-        }
-
-        // === 3. 메인 기능 (지도 & GPS) ===
-        function startSession() {
-            document.getElementById('auth-screen').classList.add('hidden');
-            document.getElementById('main-dashboard').classList.remove('hidden');
-            document.getElementById('user-display').innerText = `${currentUser.name} (${currentUser.role === 'worker' ? '근로자' : '관리자'})`;
-
-            // 지도 초기화 (네이버/카카오 대신 오픈스트리트맵 사용)
-            if(!map) {
-                map = L.map('map', {zoomControl: false}).setView([37.5665, 126.9780], 15);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-            }
-
-            // GPS 시작 및 백그라운드 유지 시도
-            startGPS();
-            
-            // 다른 작업자 위치 실시간 수신
-            subscribeWorkers();
-        }
-
-        function startGPS() {
-            // 백그라운드 유지를 위한 비디오 재생
-            document.getElementById('no-sleep-video').play().catch(e => console.log("Auto-play blocked"));
-
-            if(navigator.geolocation) {
-                const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
-                
-                watchId = navigator.geolocation.watchPosition(
-                    (pos) => {
-                        const { latitude, longitude, accuracy } = pos.coords;
-                        
-                        // UI 업데이트
-                        document.getElementById('gps-dot').classList.remove('bg-gray-400');
-                        document.getElementById('gps-dot').classList.add('bg-green-500');
-                        document.getElementById('gps-acc').innerText = `정확도 ${Math.round(accuracy)}m`;
-
-                        // 지도 이동
-                        map.panTo([latitude, longitude]);
-
-                        // 내 위치 마커 (파란색)
-                        if(markers['me']) map.removeLayer(markers['me']);
-                        markers['me'] = L.circleMarker([latitude, longitude], {
-                            radius: 8, color: '#1e3a8a', fillOpacity: 0.8
-                        }).addTo(map).bindPopup("나의 위치");
-
-                        // 서버 전송
-                        updateMyPosition(latitude, longitude);
-                    },
-                    (err) => {
-                        document.getElementById('gps-dot').classList.remove('bg-green-500');
-                        document.getElementById('gps-dot').classList.add('bg-red-500');
-                        document.getElementById('gps-acc').innerText = "신호 약함";
-                    },
-                    options
-                );
-            }
+                alert("가입 신청 완료!");
+                document.getElementById('btn-to-login').click();
+            } catch (e) { alert("오류: " + e.message); }
         }
 
         async function updateMyPosition(lat, lng) {
             if(!currentUser || !db) return;
-            // 내 위치 정보를 DB에 덮어쓰기
             await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('workers').doc(currentUser.id).set({
-                name: currentUser.name,
-                role: currentUser.role,
-                siteId: currentUser.siteId,
-                lat: lat,
-                lng: lng,
-                lastUpdate: Date.now(),
-                isSOS: false // 평소엔 false
+                name: currentUser.name, role: currentUser.role, siteId: currentUser.siteId,
+                lat: lat, lng: lng, lastUpdate: Date.now(), isVisible: true
             }, { merge: true });
         }
 
         function subscribeWorkers() {
             if (!db) return;
-            // 다른 사람들 위치 가져오기
             let query = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('workers');
-            
-            // 현장이 같으면 다 보여주기
-            if(currentUser.siteId !== 'all') {
-                query = query.where('siteId', '==', currentUser.siteId);
-            }
+            if(currentUser.siteId !== 'all') query = query.where('siteId', '==', currentUser.siteId);
 
             query.onSnapshot((snapshot) => {
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    if(data.id === currentUser.id) return; // 내꺼는 제외
-
-                    // 5분 이상 업데이트 없으면 지도에서 제거
+                    if(data.id === currentUser.id) return;
+                    
+                    // 5분 이상 멈춘 사람은 지도에서 지우기 (선택사항)
                     if(Date.now() - data.lastUpdate > 300000) {
                         if(markers[doc.id]) map.removeLayer(markers[doc.id]);
                         return;
                     }
 
-                    // 마커 표시
                     if(markers[doc.id]) map.removeLayer(markers[doc.id]);
                     
-                    const color = data.isSOS ? '#ef4444' : '#3b82f6'; // SOS면 빨간색
-                    const radius = data.isSOS ? 15 : 6;
-
+                    const color = data.isSOS ? '#ef4444' : '#3b82f6';
                     const marker = L.circleMarker([data.lat, data.lng], {
-                        radius: radius, color: color, fillColor: color, fillOpacity: 0.7
+                        radius: data.isSOS ? 12 : 6, color: color, fillColor: color, fillOpacity: 0.8
                     }).addTo(map).bindPopup(`<b>${data.name}</b><br>${data.role}`);
                     
                     markers[doc.id] = marker;
 
-                    // SOS 발생 시 알림창 띄우기 (관리자만)
                     if(data.isSOS && currentUser.role !== 'worker') {
-                        alert(`🚨 구조 요청 발생!\n이름: ${data.name}\n위치 확인 요망`);
+                        // 관리자에게는 소리 알림 추가 가능
+                        alert(`🚨 구조 요청! ${data.name}`);
                     }
                 });
             });
@@ -400,25 +460,16 @@
                     snap.forEach(doc => {
                         sel.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`;
                     });
-                    if(sel.innerHTML === '') sel.innerHTML = '<option value="default">기본 건설 현장</option>';
+                    if(sel.innerHTML === '') sel.innerHTML = '<option value="default">기본 현장</option>';
                 });
             } catch(e) {}
         }
 
-        window.logout = function() {
-            localStorage.removeItem('savedUser');
-            location.reload();
-        };
-
+        window.logout = function() { localStorage.removeItem('savedUser'); location.reload(); };
         window.triggerSOS = function() {
-            if(currentUser && db) {
-                if(confirm("🚨 긴급 구조 요청을 보내시겠습니까?")) {
-                    db.collection('artifacts').doc(appId).collection('public').doc('data').collection('workers').doc(currentUser.id).set({
-                        isSOS: true,
-                        lastUpdate: Date.now()
-                    }, { merge: true });
-                    alert("구조 요청이 전송되었습니다.\n주변 관리자에게 알림이 갑니다.");
-                }
+            if(currentUser && db && confirm("🚨 긴급 구조 요청을 보냅니까?")) {
+                db.collection('artifacts').doc(appId).collection('public').doc('data').collection('workers').doc(currentUser.id).set({ isSOS: true }, { merge: true });
+                alert("구조 요청 전송 완료!");
             }
         };
     </script>
