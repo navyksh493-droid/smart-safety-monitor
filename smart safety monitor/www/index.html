@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v9.32 (Danger Zone & SOS Fix)</title>
+    <title>스마트 안전 관제 v9.34 (Smart Alarm System)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -21,15 +21,25 @@
         body { font-family: 'Noto Sans KR', sans-serif; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
         .map-container { height: 100vh; width: 100%; z-index: 10; }
         
-        /* 애니메이션 */
+        /* 마커 링 애니메이션 */
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
         @keyframes pulse-purple { 0% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(147, 51, 234, 0); } 100% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0); } }
         
-        /* 마커 스타일 */
         .sos-marker-ring { position: absolute; border-radius: 50%; border: 3px solid #ef4444; width: 100%; height: 100%; animation: pulse-red 1.0s infinite; }
         .danger-zone-ring { position: absolute; border-radius: 50%; border: 3px solid #9333ea; width: 100%; height: 100%; animation: pulse-purple 1.5s infinite; }
         
-        /* SOS 버튼 */
+        /* [핵심] 전체 화면 빨간색 점멸 (웹/앱 공통) */
+        @keyframes full-screen-alert {
+            0%, 100% { background-color: rgba(255, 0, 0, 0); box-shadow: inset 0 0 0px red; }
+            50% { background-color: rgba(255, 0, 0, 0.4); box-shadow: inset 0 0 80px red; }
+        }
+        .emergency-overlay {
+            position: fixed; inset: 0; z-index: 9000; pointer-events: none;
+            display: none;
+            border: 6px solid rgba(255, 0, 0, 0.5);
+        }
+        .emergency-overlay.active { display: block; animation: full-screen-alert 0.8s infinite; }
+
         .sos-btn { position: absolute; bottom: 100px; right: 20px; z-index: 1000; width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; font-weight: bold; font-size: 12px; box-shadow: 0 4px 15px rgba(220, 38, 38, 0.5); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s; border: 3px solid white; }
         .sos-btn:active { transform: scale(0.95); }
         .sos-btn.active { animation: emergency-blink 0.5s infinite; background: #991b1b; }
@@ -81,6 +91,12 @@
         <source src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAACAGlzb21pc28yYXZjMQAAAAhmcmVlAAACQm1kYXQAAAGzABAHAAABthADAQAAAB5lbHN0AAAAAAAAAAEAAAABAAAAAAABAAAAAAABAAAAAAOBbW9vdgAAAGxtdmhkAAAAAAAAGNQAABjUAAABAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAh0cmFrAAAAXHRraGQAAAADAAAAGNQAABjUAAAAAQAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAIAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAABAAAAAAABAAAAAAOibWRpYQAAACBtZGhkAAAAABjUAAAY1AAAAQAAAQAAAAABAFgAAAAAAAhWhGRscgAAAAAAAAAAbWluZgAAABR2bWhkAAAAAQAAAAAAAAAAAAAAJGRpbmYAAAAcZHJlZgAAAAAAAAABAAAADHVybCAAAAABAAADWnN0YmwAAAB5c3RzZAAAAAAAAAABAAAAiWF2YzEAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAQABAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGP//AAAALWF2Y0MBWQAa//8AAAAuZ2RrdRWbCAoBwQAAA+gA8F2D3awEBAQAAAAEAAAAAAQAAAAEAAAACHN0dHMAAAAAAAAAAQAAAAEAAAB4Y3R0cwAAAAAAAAAAAAABAAEAAAAcY3R0cwAAAAAAAAAAAAABAAEAAAAcc3RzYwAAAAAAAAABAAAAAQAAAAEAAAABAAAAFHN6LmEAAAAAAAAAAQAAAAQAAAA0c3RjbwAAAAAAAAABAAAAAAA=" type="video/mp4">
     </video>
 
+    <div id="emergency-overlay" class="emergency-overlay">
+        <div class="flex items-center justify-center h-full">
+            <h1 class="text-white text-4xl font-extrabold animate-pulse drop-shadow-lg hidden md:block">🚨 위험구역 / SOS 발생 🚨</h1>
+        </div>
+    </div>
+
     <div id="toast-container"></div>
 
     <div id="loading-screen" class="fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center">
@@ -94,7 +110,7 @@
             <div class="mb-6 flex flex-col items-center">
                 <img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon">
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">System Admin v9.32 (Danger Zone)</p>
+                <p class="text-sm text-gray-500">System Admin v9.34 (Siren Logic)</p>
             </div>
             
             <div id="pwa-install-area" class="w-full mb-4 hidden">
@@ -307,7 +323,6 @@
             <h3 class="text-lg font-bold mb-4" id="zone-modal-title">새 구역 저장</h3>
             <input type="hidden" id="editing-zone-id">
             <input type="text" id="zone-name" placeholder="구역 이름" class="w-full border p-2 rounded mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            
             <div class="bg-gray-50 p-3 rounded border border-gray-200 mb-3">
                 <label class="text-xs font-bold text-gray-600 block mb-2">높이 설정 (3D)</label>
                 <div class="flex gap-2 items-center">
@@ -317,21 +332,18 @@
                     <span class="text-xs">m</span>
                 </div>
             </div>
-
             <div class="flex items-center gap-2 mb-3 bg-red-50 p-2 rounded">
                 <input type="checkbox" id="zone-is-confined" class="w-4 h-4 text-red-600 rounded">
                 <label for="zone-is-confined" class="text-sm font-bold text-red-700">위험 구역 (알림)</label>
             </div>
-            
             <div id="time-limit-box" class="hidden mb-3 ml-2 bg-yellow-50 p-2 rounded border border-yellow-200">
-                <label class="text-xs font-bold text-gray-700 block mb-1">⏱️ 체류 제한 시간 (초)</label>
+                <label class="text-xs font-bold text-gray-700 block mb-1">⏱️ 체류 알림 주기 (초)</label>
                 <div class="flex items-center gap-2">
                     <input type="number" id="zone-time-limit" value="60" class="border w-full text-center rounded p-1">
                     <span class="text-xs text-gray-500">초</span>
                 </div>
-                <p class="text-[10px] text-red-500 mt-1">* 초과 시 관리자에게 알림</p>
+                <p class="text-[10px] text-red-500 mt-1">* 주기마다 사이렌이 울립니다</p>
             </div>
-
             <div class="flex gap-2">
                 <button onclick="saveZone()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">저장</button>
                 <button onclick="document.getElementById('zoneModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded hover:bg-gray-300">취소</button>
@@ -426,12 +438,21 @@
         let gpsWatchId = null;
         let audioCtx;
         let alertedSOS = new Set();
+        
+        // [New] Audio & Alert Variables
+        let lastDangerSoundTime = 0; 
+        let wasInDanger = false;
 
         const getColRef = (name) => collection(db, 'artifacts', appId, 'public', 'data', name);
         const isManager = (role) => ['super_admin', 'admin', 'safety', 'health', 'supervisor'].includes(role);
         const isSiteAdmin = (role) => ['super_admin', 'admin', 'safety', 'health'].includes(role);
 
         window.addEventListener('DOMContentLoaded', async () => {
+             // Request Notification Permission
+             if ("Notification" in window && Notification.permission !== "granted") {
+                 Notification.requestPermission();
+             }
+             
              try {
                 await signInAnonymously(auth);
                 const q = query(getColRef('users'), where('id', '==', 'dark584'));
@@ -577,12 +598,10 @@
 
                     if(!w.isVisible) return; 
 
-                    // [수정] 마커 색상 우선순위: SOS(빨강) > 위험구역(보라) > 직책별(기본)
-                    let color = '#2563eb'; // 기본 파랑
+                    let color = '#2563eb';
                     if(w.role === 'admin') color = '#f97316';
-                    
-                    if (w.dangerEntryTime) color = '#9333ea'; // [보라색] 위험 구역 진입 시
-                    if (w.isSOS) color = '#ef4444'; // [빨강] SOS
+                    if (w.dangerEntryTime) color = '#9333ea';
+                    if (w.isSOS) color = '#ef4444';
 
                     const marker = L.circleMarker([w.lat, w.lng], { radius: 6, color, fillColor:color, fillOpacity:0.8 }).addTo(map);
                     
@@ -594,8 +613,14 @@
                 });
                 
                 const sosBtn = document.getElementById('btn-sos');
+                const overlay = document.getElementById('emergency-overlay');
+                
                 const mySOS = activeWorkers.find(w => w.id === currentUser.id && w.isSOS);
-                if(mySOS) sosBtn.classList.add('active'); else sosBtn.classList.remove('active');
+                
+                // [수정] SOS 발생 시 화면 점멸 + 내 SOS면 버튼 활성화
+                if(mySOS) { sosBtn.classList.add('active'); overlay.classList.add('active'); }
+                else if(wasInDanger) { overlay.classList.add('active'); } 
+                else { sosBtn.classList.remove('active'); overlay.classList.remove('active'); }
 
                 updateStats();
             });
@@ -630,29 +655,57 @@
             let inDanger = false;
             let inAnyZone = false;
             let zoneName = null;
+            let timeLimit = 60;
 
-            // [수정] 위험 구역 우선 판정 로직
             for (const z of zones) {
                  const inside = isPointInPolygon([lat, lng], z.points);
                  if(inside) {
                      inAnyZone = true;
                      if(z.isConfined) {
-                         inDanger = true; // 위험 구역 발견 시 즉시 위험 상태로
+                         inDanger = true;
                          zoneName = z.name;
+                         timeLimit = z.timeLimit || 60;
                      } else if (!inDanger) {
-                         // 위험 구역이 아닐 때만 일반 구역 이름 저장 (이미 위험구역이면 덮어쓰지 않음)
                          zoneName = z.name;
                      }
                  }
             }
             
+            // [핵심] 위험구역 진입/체류/이탈 알림 로직
+            const now = Date.now();
+            const overlay = document.getElementById('emergency-overlay');
+
+            if (inDanger) {
+                // 1. 진입 순간
+                if (!wasInDanger) {
+                    sendPushNotification("⚠️ 위험구역 진입! 주의하세요.");
+                    playEmergencySound(); // 앱은 소리, 웹은 무음
+                    lastDangerSoundTime = now;
+                    overlay.classList.add('active'); // 화면 점멸
+                } 
+                // 2. 체류 중 (시간 경과 시 반복 알림)
+                else if (now - lastDangerSoundTime >= (timeLimit * 1000)) {
+                    playEmergencySound();
+                    lastDangerSoundTime = now;
+                    // 알림은 너무 자주 뜨지 않게 1분마다 사이렌만 다시 울림
+                }
+            } else {
+                // 3. 이탈 순간
+                if (wasInDanger) {
+                    sendPushNotification("✅ 위험구역 이탈. 안전합니다.");
+                    overlay.classList.remove('active'); // 화면 점멸 해제
+                    // 사이렌은 자동 종료됨 (playEmergencySound가 짧게 울리므로)
+                }
+            }
+            wasInDanger = inDanger;
+
             const dist = getDistanceFromLatLonInKm(lat, lng, SITE_CENTER.lat, SITE_CENTER.lng);
             const isVisible = (dist <= 0.1 || inAnyZone);
 
             const payload = {
                 id: currentUser.id, name: currentUser.name, role: currentUser.role, siteId: currentUser.siteId,
                 lat, lng, lastUpdate: Date.now(), isVisible,
-                dangerEntryTime: inDanger ? Date.now() : null, // 위험구역 진입 시 시간 기록
+                dangerEntryTime: inDanger ? Date.now() : null, 
                 currentZoneName: zoneName
             };
             
@@ -668,13 +721,13 @@
         window.saveZone = async () => {
             const name = document.getElementById('zone-name').value;
             const isConfined = document.getElementById('zone-is-confined').checked;
-            const timeLimit = document.getElementById('zone-time-limit').value; // [추가] 시간 설정 값
+            const timeLimit = document.getElementById('zone-time-limit').value; 
             const id = document.getElementById('editing-zone-id').value;
             
             const data = { 
                 name, points: JSON.stringify(drawingPoints), isConfined, 
                 minAlt: -10, maxAlt: 500, siteId: currentSiteId,
-                timeLimit: isConfined ? parseInt(timeLimit) : 0 // 위험구역일 때만 저장
+                timeLimit: isConfined ? parseInt(timeLimit) : 0 
             };
             
             if(id) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'zones', id), { name, isConfined, timeLimit: parseInt(timeLimit) });
@@ -691,22 +744,19 @@
             document.getElementById('zone-name').value = z.name;
             document.getElementById('zone-is-confined').checked = z.isConfined;
             document.getElementById('zone-time-limit').value = z.timeLimit || 60;
-            
-            // 위험 구역 체크 여부에 따라 시간 설정 표시
             document.getElementById('time-limit-box').classList.toggle('hidden', !z.isConfined);
-            
             document.getElementById('zoneModal').classList.remove('hidden');
         };
         
-        // 이벤트: 위험구역 체크박스 변경 시 시간 설정 보이기/숨기기
         document.getElementById('zone-is-confined').addEventListener('change', (e) => {
             document.getElementById('time-limit-box').classList.toggle('hidden', !e.target.checked);
         });
 
-        // [SOS 기능 수정]
+        // [SOS 기능]
         window.triggerSOS = async () => {
             if(!currentUser) return alert("로그인 필요");
             const btn = document.getElementById('btn-sos');
+            const overlay = document.getElementById('emergency-overlay');
             const isActive = btn.classList.contains('active');
             
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'workers', currentUser.id), { isSOS: !isActive });
@@ -714,14 +764,88 @@
             if(!isActive) { 
                 alert("🚨 구조 요청을 전송했습니다!"); 
                 btn.classList.add('active'); 
+                overlay.classList.add('active'); // 화면 점멸
+                playEmergencySound(); 
             } else { 
                 alert("SOS를 해제했습니다."); 
-                btn.classList.remove('active'); 
+                btn.classList.remove('active');
+                overlay.classList.remove('active'); // 점멸 해제
             }
         };
 
+        function sendPushNotification(msg) {
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification("안전 관제 알림", { body: msg, icon: document.getElementById('favicon').href });
+            }
+        }
+
+        function playEmergencySound() {
+            // [수정] 웹 접속자는 소리 울리지 않음 (isCapacitor 체크)
+            if (!isCapacitor()) {
+                console.log("Web Mode: Siren muted (Visual alert only)");
+                return;
+            }
+
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime); 
+            osc.frequency.linearRampToValueAtTime(440, audioCtx.currentTime + 0.5); 
+            gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        // ... (나머지 기존 헬퍼 함수들 동일)
+        function getZoneColor(t) { return t==='danger'?'#ef4444':(t==='boundary'?'#2563eb':'#10b981'); }
+        function getRoleName(r) { return (r==='super_admin'?'최고관리자':(r==='admin'?'현장소장':(r==='safety'?'안전관리자':(r==='health'?'보건관리자':'근로자')))); }
+        function getDistanceFromLatLonInKm(lat1,lon1,lat2,lon2) { var R=6371; var dLat=deg2rad(lat2-lat1); var dLon=deg2rad(lon2-lon1); var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(deg2rad(lat1))*Math.cos(deg2rad(lat2))*Math.sin(dLon/2)*Math.sin(dLon/2); var c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); return R*c; }
+        function deg2rad(d) { return d*(Math.PI/180); }
+        function isPointInPolygon(p, vs) { var x = p[0], y = p[1]; var inside = false; for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) { var xi = vs[i][0], yi = vs[i][1]; var xj = vs[j][0], yj = vs[j][1]; var intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi); if (intersect) inside = !inside; } return inside; }
+        function updateStats() { document.getElementById('stat-total').innerText = activeWorkers.length; }
+        function renderDangerList() { /* ... */ }
+        function enableNoSleep() { document.getElementById('no-sleep-video').play().catch(()=>{}); }
+        window.refreshGPS = () => { if(gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId); startGPS(); };
+        window.createNewSite = async () => { await addDoc(getColRef('sites'), {name: document.getElementById('new-site-name').value}); document.getElementById('createSiteModal').classList.add('hidden'); alert('생성됨'); };
+        window.switchSite = (id) => { currentSiteId = id; subscribeData(); };
+        window.openCreateSiteModal = () => document.getElementById('createSiteModal').classList.remove('hidden');
+        window.saveMyInfo = async () => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser.id), {name: document.getElementById('my-name').value}); document.getElementById('myInfoModal').classList.add('hidden'); };
+        window.approveUser = async (uid) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid), { approved: true });
+        window.deleteUser = async (uid) => { if(confirm('삭제?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid)); };
+        window.deleteZone = async (zid) => { if(confirm('삭제?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'zones', zid)); };
+        
+        window.openInfoModal = (uid, job, equip, health, isElderly, assignedArea, personalInfo, checkupDate) => { 
+            document.getElementById('edit-user-id').value = uid; 
+            document.getElementById('edit-job').value = job || '';
+            document.getElementById('edit-equip').value = equip || '';
+            document.getElementById('edit-health-grade').value = health || 'A';
+            document.getElementById('edit-is-elderly').checked = isElderly || false;
+            document.getElementById('edit-assigned-area').value = assignedArea || '';
+            document.getElementById('edit-personal-info').value = personalInfo || '';
+            document.getElementById('edit-checkup-date').value = checkupDate || '';
+            const isSafetyOrHealth = ['super_admin', 'safety', 'health'].includes(currentUser.role);
+            document.getElementById('edit-health-grade').disabled = !isSafetyOrHealth;
+            document.getElementById('edit-checkup-date').disabled = !isSafetyOrHealth;
+            document.getElementById('userInfoModal').classList.remove('hidden'); 
+        };
+        window.saveUserInfo = async () => {
+             const uid = document.getElementById('edit-user-id').value;
+             const job = document.getElementById('edit-job').value;
+             const equip = document.getElementById('edit-equip').value;
+             const healthGrade = document.getElementById('edit-health-grade').value;
+             const isElderly = document.getElementById('edit-is-elderly').checked;
+             const assignedArea = document.getElementById('edit-assigned-area').value;
+             const personalInfo = document.getElementById('edit-personal-info').value;
+             const checkupDate = document.getElementById('edit-checkup-date').value;
+             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid), { job, equip, healthGrade, isElderly, assignedArea, personalInfo, checkupDate });
+             try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'workers', uid), { healthGrade, isElderly, assignedArea, personalInfo, checkupDate }); } catch(e) { }
+             document.getElementById('userInfoModal').classList.add('hidden');
+        };
+        window.openMyInfoModal = () => { document.getElementById('my-name').value = currentUser.name; document.getElementById('myInfoModal').classList.remove('hidden'); };
         window.checkHealthSchedule = (showModal) => {
-            // ... (기존 보건 알림 로직 유지) ...
             const today = new Date();
             let hasAlert = false;
             getDocs(query(getColRef('users'))).then(snap => {
@@ -734,68 +858,12 @@
                         nextDate.setFullYear(checkDate.getFullYear() + 1);
                         const notiDate = new Date(nextDate);
                         notiDate.setMonth(nextDate.getMonth() - 1);
-                        if(today >= notiDate && today < nextDate) {
-                            msg += `- ${u.name} (검진일: ${u.checkupDate})\n`;
-                            hasAlert = true;
-                        }
+                        if(today >= notiDate && today < nextDate) { msg += `- ${u.name}\n`; hasAlert = true; }
                     }
                 });
-                if(hasAlert && showModal) alert(msg);
-                else if(showModal) alert("검진 임박 대상자가 없습니다.");
+                if(hasAlert && showModal) alert(msg); else if(showModal) alert("대상자 없음");
             });
         };
-
-        // 기타 헬퍼들...
-        function getZoneColor(t) { return t==='danger'?'#ef4444':(t==='boundary'?'#2563eb':'#10b981'); }
-        function getRoleName(r) { return (r==='super_admin'?'최고관리자':(r==='admin'?'현장소장':(r==='safety'?'안전관리자':(r==='health'?'보건관리자':'근로자')))); }
-        function getDistanceFromLatLonInKm(lat1,lon1,lat2,lon2) { var R=6371; var dLat=deg2rad(lat2-lat1); var dLon=deg2rad(lon2-lon1); var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(deg2rad(lat1))*Math.cos(deg2rad(lat2))*Math.sin(dLon/2)*Math.sin(dLon/2); var c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); return R*c; }
-        function deg2rad(d) { return d*(Math.PI/180); }
-        function isPointInPolygon(p, vs) { var x = p[0], y = p[1]; var inside = false; for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) { var xi = vs[i][0], yi = vs[i][1]; var xj = vs[j][0], yj = vs[j][1]; var intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi); if (intersect) inside = !inside; } return inside; }
-        function updateStats() { document.getElementById('stat-total').innerText = activeWorkers.length; }
-        function renderDangerList() { /* ... */ }
-        function playEmergencySound() { /* ... */ }
-        function enableNoSleep() { document.getElementById('no-sleep-video').play().catch(()=>{}); }
-        window.refreshGPS = () => { if(gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId); startGPS(); };
-        window.createNewSite = async () => { await addDoc(getColRef('sites'), {name: document.getElementById('new-site-name').value}); document.getElementById('createSiteModal').classList.add('hidden'); alert('생성됨'); };
-        window.switchSite = (id) => { currentSiteId = id; subscribeData(); };
-        window.openCreateSiteModal = () => document.getElementById('createSiteModal').classList.remove('hidden');
-        window.saveMyInfo = async () => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser.id), {name: document.getElementById('my-name').value}); document.getElementById('myInfoModal').classList.add('hidden'); };
-        window.approveUser = async (uid) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid), { approved: true });
-        window.deleteUser = async (uid) => { if(confirm('삭제?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid)); };
-        window.deleteZone = async (zid) => { if(confirm('삭제?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'zones', zid)); };
-        
-        // Modal Openers
-        window.openInfoModal = (uid, job, equip, health, isElderly, assignedArea, personalInfo, checkupDate) => { 
-            document.getElementById('edit-user-id').value = uid; 
-            document.getElementById('edit-job').value = job || '';
-            document.getElementById('edit-equip').value = equip || '';
-            document.getElementById('edit-health-grade').value = health || 'A';
-            document.getElementById('edit-is-elderly').checked = isElderly || false;
-            document.getElementById('edit-assigned-area').value = assignedArea || '';
-            document.getElementById('edit-personal-info').value = personalInfo || '';
-            document.getElementById('edit-checkup-date').value = checkupDate || '';
-            
-            const isSafetyOrHealth = ['super_admin', 'safety', 'health'].includes(currentUser.role);
-            document.getElementById('edit-health-grade').disabled = !isSafetyOrHealth;
-            document.getElementById('edit-checkup-date').disabled = !isSafetyOrHealth;
-            document.getElementById('userInfoModal').classList.remove('hidden'); 
-        };
-        window.saveUserInfo = async () => {
-             const uid = document.getElementById('edit-user-id').value;
-             // ... (입력값 가져오기) ...
-             const job = document.getElementById('edit-job').value;
-             const equip = document.getElementById('edit-equip').value;
-             const healthGrade = document.getElementById('edit-health-grade').value;
-             const isElderly = document.getElementById('edit-is-elderly').checked;
-             const assignedArea = document.getElementById('edit-assigned-area').value;
-             const personalInfo = document.getElementById('edit-personal-info').value;
-             const checkupDate = document.getElementById('edit-checkup-date').value;
-
-             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid), { job, equip, healthGrade, isElderly, assignedArea, personalInfo, checkupDate });
-             try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'workers', uid), { healthGrade, isElderly, assignedArea, personalInfo, checkupDate }); } catch(e) { }
-             document.getElementById('userInfoModal').classList.add('hidden');
-        };
-        window.openMyInfoModal = () => { document.getElementById('my-name').value = currentUser.name; document.getElementById('myInfoModal').classList.remove('hidden'); };
 
         // Listeners
         document.getElementById('btn-login').addEventListener('click', window.handleLogin);
