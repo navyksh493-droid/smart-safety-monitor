@@ -3,58 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v9.60 (Diagnosis)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>스마트 안전 관제 (Live)</title>
     
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1e3a8a">
+    <link rel="icon" id="favicon" href="">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
     <style>
-        body { font-family: 'Noto Sans KR', sans-serif; background: #f3f4f6; padding: 20px; }
-        #console-log { 
-            width: 100%; height: 200px; 
-            background: black; color: #00ff00; 
-            font-family: monospace; font-size: 12px; 
-            padding: 10px; overflow-y: scroll; 
-            border-radius: 8px; margin-top: 20px;
-            white-space: pre-wrap;
+        body { font-family: 'Noto Sans KR', sans-serif; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .map-container { height: 100vh; width: 100%; z-index: 10; }
+        /* SOS 버튼 스타일 */
+        .sos-btn { 
+            position: absolute; bottom: 80px; right: 20px; z-index: 1000; 
+            width: 64px; height: 64px; border-radius: 50%; 
+            background: linear-gradient(135deg, #ef4444, #dc2626); 
+            color: white; display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; 
+            font-weight: bold; font-size: 12px;
+            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.6); 
+            border: 3px solid white; transition: transform 0.1s;
         }
+        .sos-btn:active { transform: scale(0.95); }
+        .sos-btn i { font-size: 24px; margin-bottom: 2px; }
+        
+        /* 백그라운드 유지용 비디오 (숨김) */
+        #no-sleep-video { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
     </style>
 </head>
-<body class="flex flex-col items-center">
+<body class="bg-gray-100 overflow-hidden h-screen w-screen">
 
-    <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md text-center">
-        <h1 class="text-2xl font-bold mb-2">시스템 진단 모드</h1>
-        <p class="text-xs text-gray-500 mb-6">로그인이 안 되는 정확한 원인을 찾습니다.</p>
+    <video id="no-sleep-video" playsinline muted loop>
+        <source src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAACAGlzb21pc28yYXZjMQAAAAhmcmVlAAACQm1kYXQAAAGzABAHAAABthADAQAAAB5lbHN0AAAAAAAAAAEAAAABAAAAAAABAAAAAAABAAAAAAOBbW9vdgAAAGxtdmhkAAAAAAAAGNQAABjUAAABAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAh0cmFrAAAAXHRraGQAAAADAAAAGNQAABjUAAAAAQAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAIAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAABAAAAAAABAAAAAAABAAAAAAOibWRpYQAAACBtZGhkAAAAABjUAAAY1AAAAQAAAQAAAAABAFgAAAAAAAhWhGRscgAAAAAAAAAAbWluZgAAABR2bWhkAAAAAQAAAAAAAAAAAAAAJGRpbmYAAAAcZHJlZgAAAAAAAAABAAAADHVybCAAAAABAAADWnN0YmwAAAB5c3RzZAAAAAAAAAABAAAAiWF2YzEAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAQABAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGP//AAAALWF2Y0MBWQAa//8AAAAuZ2RrdRWbCAoBwQAAA+gA8F2D3awEBAQAAAAEAAAAAAQAAAAEAAAACHN0dHMAAAAAAAAAAQAAAAEAAAB4Y3R0cwAAAAAAAAAAAAABAAEAAAAcY3R0cwAAAAAAAAAAAAABAAEAAAAcc3RzYwAAAAAAAAABAAAAAQAAAAEAAAABAAAAFHN6LmEAAAAAAAAAAQAAAAQAAAA0c3RjbwAAAAAAAAABAAAAAAA=" type="video/mp4">
+    </video>
 
-        <div class="space-y-4 text-left">
-            <div>
-                <label class="text-xs font-bold text-gray-500">테스트 아이디</label>
-                <input type="text" id="login-id" value="dark584" class="w-full border p-2 rounded">
+    <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-90">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md m-4 relative">
+            <div class="text-center mb-8">
+                <div class="bg-blue-900 w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-lg">
+                    <i class="fa-solid fa-helmet-safety text-white text-3xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
+                <p id="conn-status" class="text-xs text-blue-500 mt-2 font-bold animate-pulse">● 시스템 연결 중...</p>
             </div>
-            <div>
-                <label class="text-xs font-bold text-gray-500">비밀번호</label>
-                <input type="text" id="login-pw" value="Rufghs0423!!" class="w-full border p-2 rounded">
+
+            <div class="flex border-b mb-6">
+                <button id="tab-login" class="flex-1 py-3 font-bold text-blue-900 border-b-2 border-blue-900">로그인</button>
+                <button id="tab-signup" class="flex-1 py-3 text-gray-400 hover:text-gray-600">회원가입</button>
             </div>
+
+            <div id="form-login" class="space-y-4">
+                <input type="text" id="login-id" placeholder="아이디" class="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-900 outline-none">
+                <div class="relative">
+                    <input type="password" id="login-pw" placeholder="비밀번호" class="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-900 outline-none">
+                    <button id="btn-show-pw" class="absolute right-3 top-3.5 text-gray-400"><i class="fa-solid fa-eye"></i></button>
+                </div>
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="auto-login-check" class="w-4 h-4 rounded text-blue-900">
+                    <label for="auto-login-check" class="text-sm text-gray-600">자동 로그인</label>
+                </div>
+                <button id="btn-login" class="w-full bg-blue-900 text-white py-4 rounded-lg font-bold shadow-lg hover:bg-blue-800 transition transform active:scale-95">
+                    접속하기
+                </button>
+            </div>
+
+            <div id="form-signup" class="space-y-4 hidden">
+                <input type="text" id="reg-id" placeholder="아이디 (영문/숫자)" class="w-full border p-3 rounded-lg">
+                <input type="text" id="reg-name" placeholder="이름 (실명)" class="w-full border p-3 rounded-lg">
+                <input type="password" id="reg-pw" placeholder="비밀번호" class="w-full border p-3 rounded-lg">
+                <div class="border p-2 rounded-lg bg-gray-50">
+                    <label class="text-xs font-bold text-gray-500 pl-1">현장 선택</label>
+                    <select id="reg-site" class="w-full border p-2 rounded bg-white mt-1">
+                        <option value="site1">기본 건설 현장</option>
+                    </select>
+                </div>
+                <select id="reg-role" class="w-full border p-3 rounded-lg bg-white">
+                    <option value="worker">근로자</option>
+                    <option value="admin">현장소장 (관리자)</option>
+                    <option value="safety">안전관리자</option>
+                </select>
+                <button id="btn-signup" class="w-full bg-green-600 text-white py-4 rounded-lg font-bold shadow-lg hover:bg-green-700 transition transform active:scale-95">
+                    가입 신청
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-dashboard" class="hidden h-screen flex flex-col">
+        <div class="bg-white px-4 py-3 flex justify-between items-center shadow-md z-20">
+            <div class="flex items-center gap-2">
+                <div class="bg-blue-900 w-8 h-8 rounded flex items-center justify-center text-white"><i class="fa-solid fa-tower-broadcast"></i></div>
+                <div>
+                    <h1 class="font-bold text-gray-800 text-sm">통합 관제실</h1>
+                    <p id="user-display" class="text-[10px] text-gray-500">사용자 확인 중...</p>
+                </div>
+            </div>
+            <button onclick="logout()" class="text-xs bg-gray-100 text-gray-600 px-3 py-2 rounded hover:bg-gray-200 font-bold">
+                <i class="fa-solid fa-right-from-bracket mr-1"></i> 로그아웃
+            </button>
+        </div>
+
+        <div class="flex-1 relative bg-gray-200">
+            <div id="map" class="h-full w-full outline-none"></div>
             
-            <button id="btn-diagnose" class="w-full bg-blue-600 text-white py-3 rounded font-bold hover:bg-blue-700">
-                🚀 진단 시작 (클릭)
+            <div class="absolute top-4 left-4 right-4 flex justify-center z-[500]">
+                <div class="bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-lg border border-blue-100 flex items-center gap-3">
+                    <div class="flex items-center gap-1">
+                        <span id="gps-dot" class="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></span>
+                        <span class="text-xs font-bold text-gray-600">GPS</span>
+                    </div>
+                    <div class="h-3 w-px bg-gray-300"></div>
+                    <span id="gps-acc" class="text-xs text-gray-500 font-mono">신호 대기중</span>
+                </div>
+            </div>
+
+            <button onclick="triggerSOS()" class="sos-btn">
+                <i class="fa-solid fa-bell"></i>
+                SOS
             </button>
         </div>
     </div>
 
-    <div id="console-log">대기 중... 버튼을 눌러주세요.</div>
-
     <script>
-        // 화면에 로그 찍는 함수
-        function log(msg) {
-            const box = document.getElementById('console-log');
-            const time = new Date().toLocaleTimeString();
-            box.innerHTML += `\n[${time}] ${msg}`;
-            box.scrollTop = box.scrollHeight;
-        }
-
+        // === 1. 설정 및 초기화 ===
         const firebaseConfig = {
             apiKey: "AIzaSyCMWQa-O2m8BB0XHzhXlYfdy3smIsgKs0A",
             authDomain: "smart-safety-monitor-37649.firebaseapp.com",
@@ -67,74 +147,278 @@
 
         let app, auth, db;
         const appId = "default-app-id";
+        let map, currentUser = null;
+        let markers = {}; 
+        let watchId = null;
 
-        document.getElementById('btn-diagnose').onclick = async () => {
-            document.getElementById('console-log').innerHTML = "=== 진단 시작 ===";
-            
+        // 페이지 로드 시 실행
+        window.addEventListener('load', () => {
             try {
-                // 1. 초기화 확인
-                log("1. Firebase 초기화 중...");
-                if (typeof firebase === 'undefined') throw new Error("Firebase SDK 로드 실패");
                 app = firebase.initializeApp(firebaseConfig);
                 auth = firebase.auth();
                 db = firebase.firestore();
-                log("✅ 초기화 성공!");
-
-                // 2. 익명 로그인 확인
-                log("2. 서버 접속(익명 인증) 시도...");
-                await auth.signInAnonymously();
-                const user = auth.currentUser;
-                if(user) {
-                    log(`✅ 접속 성공! (UID: ${user.uid.substring(0,5)}...)`);
-                } else {
-                    throw new Error("접속 실패 (User null)");
+                
+                // 연결 상태 표시
+                document.getElementById('conn-status').innerText = "● 서버 연결 완료";
+                document.getElementById('conn-status').className = "text-xs text-green-600 mt-2 font-bold";
+                
+                // 자동 로그인 확인
+                const saved = localStorage.getItem('savedUser');
+                if(saved) {
+                    try { 
+                        currentUser = JSON.parse(saved); 
+                        startSession(); 
+                    } catch(e) { localStorage.removeItem('savedUser'); }
                 }
 
-                // 3. DB 읽기/쓰기 권한 확인 (가장 중요!)
-                log("3. 데이터베이스 권한 테스트...");
-                const testRef = db.collection('test_logs').doc('connection_check');
-                try {
-                    await testRef.set({ check: true, time: Date.now() });
-                    log("✅ DB 쓰기 성공 (권한 있음)");
-                } catch(e) {
-                    log("❌ DB 쓰기 실패! (이게 원인입니다)");
-                    log("에러 내용: " + e.message);
-                    if(e.code === 'permission-denied') {
-                        log("💡 해결책: Firestore '규칙(Rules)' 탭에서 권한을 허용해야 합니다.");
-                    }
-                    return; // 여기서 중단
-                }
-
-                // 4. 사용자 계정 조회
-                const id = document.getElementById('login-id').value;
-                const pw = document.getElementById('login-pw').value;
-                log(`4. 계정 조회 시도 (ID: ${id})`);
-
-                const q = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users')
-                    .where('id', '==', id).where('pw', '==', pw).get();
-
-                if (q.empty) {
-                    log("⚠️ 조회 결과 없음 (계정이 존재하지 않음)");
-                    log("-> 자동 생성 시도...");
-                    
-                    if(id === 'dark584') {
-                        await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').add({
-                            id: 'dark584', pw: 'Rufghs0423!!', name: '최고 관리자', role: 'super_admin', approved: true, siteId: 'all'
-                        });
-                        log("✅ 관리자 계정 생성 완료! 다시 버튼을 눌러보세요.");
-                    } else {
-                        log("❌ 일반 계정은 회원가입부터 하세요.");
-                    }
-                } else {
-                    const userData = q.docs[0].data();
-                    log(`🎉 로그인 성공! 이름: ${userData.name}`);
-                    log("결론: 시스템은 정상입니다. 원래 코드로 복구해도 됩니다.");
-                }
+                // 현장 목록 로드
+                loadSites();
 
             } catch (e) {
-                log("🚨 치명적 에러 발생!");
-                log(e.message);
-                if(e.message.includes("network")) log("💡 인터넷 연결 상태를 확인하세요.");
+                document.getElementById('conn-status').innerText = "● 연결 실패: " + e.message;
+                document.getElementById('conn-status').className = "text-xs text-red-500 mt-2 font-bold";
+            }
+
+            // UI 이벤트 연결
+            setupUI();
+        });
+
+        function setupUI() {
+            // 탭 전환
+            document.getElementById('tab-login').onclick = () => {
+                document.getElementById('form-login').classList.remove('hidden');
+                document.getElementById('form-signup').classList.add('hidden');
+                document.getElementById('tab-login').className = "flex-1 py-3 font-bold text-blue-900 border-b-2 border-blue-900";
+                document.getElementById('tab-signup').className = "flex-1 py-3 text-gray-400";
+            };
+            document.getElementById('tab-signup').onclick = () => {
+                document.getElementById('form-login').classList.add('hidden');
+                document.getElementById('form-signup').classList.remove('hidden');
+                document.getElementById('tab-signup').className = "flex-1 py-3 font-bold text-blue-900 border-b-2 border-blue-900";
+                document.getElementById('tab-login').className = "flex-1 py-3 text-gray-400";
+            };
+
+            // 비밀번호 보기
+            document.getElementById('btn-show-pw').onclick = () => {
+                const pw = document.getElementById('login-pw');
+                pw.type = pw.type === 'password' ? 'text' : 'password';
+            };
+
+            document.getElementById('btn-login').onclick = handleLogin;
+            document.getElementById('btn-signup').onclick = handleSignup;
+        }
+
+        // === 2. 로그인 로직 (관리자 자동생성 포함) ===
+        async function handleLogin() {
+            const id = document.getElementById('login-id').value;
+            const pw = document.getElementById('login-pw').value;
+            
+            if(!id || !pw) return alert("아이디와 비밀번호를 입력해주세요.");
+            
+            try {
+                // 익명 인증으로 DB 접근 권한 얻기
+                if (!auth.currentUser) await auth.signInAnonymously();
+
+                // [자동생성] 최고 관리자 계정이 없으면 만듦 (첫 로그인용)
+                if(id === 'dark584' && pw === 'Rufghs0423!!') {
+                    const check = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').where('id', '==', 'dark584').get();
+                    if(check.empty) {
+                        await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').add({
+                            id: 'dark584', pw: 'Rufghs0423!!', name: '최고 관리자', role: 'super_admin', approved: true, siteId: 'all', createdAt: Date.now()
+                        });
+                    }
+                }
+
+                // 사용자 조회
+                const snapshot = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users')
+                    .where('id', '==', id).where('pw', '==', pw).get();
+
+                if (snapshot.empty) return alert("일치하는 계정이 없습니다.");
+
+                const userData = snapshot.docs[0].data();
+                userData.docId = snapshot.docs[0].id;
+
+                if (!userData.approved) return alert("가입 승인 대기 중입니다. 관리자에게 문의하세요.");
+
+                // 로그인 성공
+                currentUser = userData;
+                if(document.getElementById('auto-login-check').checked) {
+                    localStorage.setItem('savedUser', JSON.stringify(currentUser));
+                }
+
+                startSession();
+
+            } catch (error) {
+                alert("로그인 중 오류가 발생했습니다.\n" + error.message);
+            }
+        }
+
+        async function handleSignup() {
+            const id = document.getElementById('reg-id').value;
+            const name = document.getElementById('reg-name').value;
+            const pw = document.getElementById('reg-pw').value;
+            const siteId = document.getElementById('reg-site').value;
+            const role = document.getElementById('reg-role').value;
+
+            if(!id || !name || !pw) return alert("모든 정보를 입력해주세요.");
+
+            try {
+                if (!auth.currentUser) await auth.signInAnonymously();
+                
+                const check = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').where('id', '==', id).get();
+                if(!check.empty) return alert("이미 사용 중인 아이디입니다.");
+
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').add({
+                    id, name, pw, siteId, role, approved: false, createdAt: Date.now()
+                });
+
+                alert("가입 신청이 완료되었습니다.\n관리자 승인 후 로그인 가능합니다.");
+                document.getElementById('tab-login').click();
+            } catch (error) {
+                alert("가입 오류: " + error.message);
+            }
+        }
+
+        // === 3. 메인 기능 (지도 & GPS) ===
+        function startSession() {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('main-dashboard').classList.remove('hidden');
+            document.getElementById('user-display').innerText = `${currentUser.name} (${currentUser.role === 'worker' ? '근로자' : '관리자'})`;
+
+            // 지도 초기화 (네이버/카카오 대신 오픈스트리트맵 사용)
+            if(!map) {
+                map = L.map('map', {zoomControl: false}).setView([37.5665, 126.9780], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            }
+
+            // GPS 시작 및 백그라운드 유지 시도
+            startGPS();
+            
+            // 다른 작업자 위치 실시간 수신
+            subscribeWorkers();
+        }
+
+        function startGPS() {
+            // 백그라운드 유지를 위한 비디오 재생
+            document.getElementById('no-sleep-video').play().catch(e => console.log("Auto-play blocked"));
+
+            if(navigator.geolocation) {
+                const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+                
+                watchId = navigator.geolocation.watchPosition(
+                    (pos) => {
+                        const { latitude, longitude, accuracy } = pos.coords;
+                        
+                        // UI 업데이트
+                        document.getElementById('gps-dot').classList.remove('bg-gray-400');
+                        document.getElementById('gps-dot').classList.add('bg-green-500');
+                        document.getElementById('gps-acc').innerText = `정확도 ${Math.round(accuracy)}m`;
+
+                        // 지도 이동
+                        map.panTo([latitude, longitude]);
+
+                        // 내 위치 마커 (파란색)
+                        if(markers['me']) map.removeLayer(markers['me']);
+                        markers['me'] = L.circleMarker([latitude, longitude], {
+                            radius: 8, color: '#1e3a8a', fillOpacity: 0.8
+                        }).addTo(map).bindPopup("나의 위치");
+
+                        // 서버 전송
+                        updateMyPosition(latitude, longitude);
+                    },
+                    (err) => {
+                        document.getElementById('gps-dot').classList.remove('bg-green-500');
+                        document.getElementById('gps-dot').classList.add('bg-red-500');
+                        document.getElementById('gps-acc').innerText = "신호 약함";
+                    },
+                    options
+                );
+            }
+        }
+
+        async function updateMyPosition(lat, lng) {
+            if(!currentUser || !db) return;
+            // 내 위치 정보를 DB에 덮어쓰기
+            await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('workers').doc(currentUser.id).set({
+                name: currentUser.name,
+                role: currentUser.role,
+                siteId: currentUser.siteId,
+                lat: lat,
+                lng: lng,
+                lastUpdate: Date.now(),
+                isSOS: false // 평소엔 false
+            }, { merge: true });
+        }
+
+        function subscribeWorkers() {
+            if (!db) return;
+            // 다른 사람들 위치 가져오기
+            let query = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('workers');
+            
+            // 현장이 같으면 다 보여주기
+            if(currentUser.siteId !== 'all') {
+                query = query.where('siteId', '==', currentUser.siteId);
+            }
+
+            query.onSnapshot((snapshot) => {
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    if(data.id === currentUser.id) return; // 내꺼는 제외
+
+                    // 5분 이상 업데이트 없으면 지도에서 제거
+                    if(Date.now() - data.lastUpdate > 300000) {
+                        if(markers[doc.id]) map.removeLayer(markers[doc.id]);
+                        return;
+                    }
+
+                    // 마커 표시
+                    if(markers[doc.id]) map.removeLayer(markers[doc.id]);
+                    
+                    const color = data.isSOS ? '#ef4444' : '#3b82f6'; // SOS면 빨간색
+                    const radius = data.isSOS ? 15 : 6;
+
+                    const marker = L.circleMarker([data.lat, data.lng], {
+                        radius: radius, color: color, fillColor: color, fillOpacity: 0.7
+                    }).addTo(map).bindPopup(`<b>${data.name}</b><br>${data.role}`);
+                    
+                    markers[doc.id] = marker;
+
+                    // SOS 발생 시 알림창 띄우기 (관리자만)
+                    if(data.isSOS && currentUser.role !== 'worker') {
+                        alert(`🚨 구조 요청 발생!\n이름: ${data.name}\n위치 확인 요망`);
+                    }
+                });
+            });
+        }
+
+        function loadSites() {
+            try {
+                if (!auth.currentUser) auth.signInAnonymously();
+                db.collection('artifacts').doc(appId).collection('public').doc('data').collection('sites').onSnapshot(snap => {
+                    const sel = document.getElementById('reg-site');
+                    sel.innerHTML = '';
+                    snap.forEach(doc => {
+                        sel.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`;
+                    });
+                    if(sel.innerHTML === '') sel.innerHTML = '<option value="default">기본 건설 현장</option>';
+                });
+            } catch(e) {}
+        }
+
+        window.logout = function() {
+            localStorage.removeItem('savedUser');
+            location.reload();
+        };
+
+        window.triggerSOS = function() {
+            if(currentUser && db) {
+                if(confirm("🚨 긴급 구조 요청을 보내시겠습니까?")) {
+                    db.collection('artifacts').doc(appId).collection('public').doc('data').collection('workers').doc(currentUser.id).set({
+                        isSOS: true,
+                        lastUpdate: Date.now()
+                    }, { merge: true });
+                    alert("구조 요청이 전송되었습니다.\n주변 관리자에게 알림이 갑니다.");
+                }
             }
         };
     </script>
