@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v9.6 (Site Delete)</title>
+    <title>스마트 안전 관제 v9.7 (Admin Tools & Draw UX)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -21,7 +21,7 @@
         body { font-family: 'Noto Sans KR', sans-serif; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
         .map-container { height: 100vh; width: 100%; z-index: 10; }
         
-        /* 마커 링 애니메이션 */
+        /* 애니메이션 정의 */
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
         @keyframes pulse-purple { 0% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(147, 51, 234, 0); } 100% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0); } }
         
@@ -95,7 +95,7 @@
             <div class="mb-6 flex flex-col items-center">
                 <img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon">
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">System Admin v9.6</p>
+                <p class="text-sm text-gray-500">System Admin v9.7</p>
             </div>
             
             <div class="flex border-b mb-4 w-full">
@@ -150,13 +150,6 @@
                 </div>
             </div>
             
-            <div id="super-admin-controls" class="p-2 bg-yellow-50 border-b border-yellow-200 hidden">
-                <label class="text-[10px] font-bold text-yellow-800 block mb-1">👑 최고관리자 관제 현장 선택</label>
-                <select id="super-admin-site-select" class="w-full text-xs border border-yellow-300 rounded p-2 bg-white font-bold mb-2">
-                    <option value="all">🌐 모든 현장 보기 (통합)</option>
-                </select>
-            </div>
-
             <div class="flex text-sm bg-gray-100 border-b">
                 <button id="tab-monitor" class="flex-1 py-3 bg-white border-b-2 border-blue-500 font-bold text-blue-600">관제</button>
                 <button id="tab-users" class="flex-1 py-3 text-gray-500 hidden">인원 관리</button>
@@ -195,9 +188,16 @@
                 <div id="admin-tools" class="hidden bg-white p-4 rounded shadow-sm border border-blue-100">
                     <h3 class="font-bold text-blue-800 text-sm mb-2 flex justify-between">관리자 도구</h3>
                     
-                    <div id="site-mgmt-tools" class="hidden grid grid-cols-2 gap-2 mb-2">
-                        <button onclick="openCreateSiteModal()" class="bg-gray-700 text-white font-bold py-2 rounded text-xs hover:bg-gray-800 flex items-center justify-center gap-1"><i class="fa-solid fa-plus"></i> 현장 생성</button>
-                        <button onclick="openEditSiteModal()" class="bg-gray-200 text-gray-700 font-bold py-2 rounded text-xs hover:bg-gray-300 flex items-center justify-center gap-1"><i class="fa-solid fa-pen"></i> 현장 수정</button>
+                    <div id="site-mgmt-tools" class="hidden border-b pb-4 mb-4">
+                        <label class="text-[10px] font-bold text-gray-500 block mb-1">관리할 현장 선택</label>
+                        <select id="super-admin-site-select" class="w-full text-xs border border-blue-300 rounded p-2 bg-blue-50 font-bold mb-3 shadow-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="all">🌐 모든 현장 보기 (통합)</option>
+                        </select>
+                        <div class="grid grid-cols-3 gap-1">
+                            <button onclick="openCreateSiteModal()" class="bg-blue-600 text-white font-bold py-2 rounded text-xs hover:bg-blue-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-plus"></i> 현장 생성</button>
+                            <button onclick="deleteCurrentSite()" class="bg-red-600 text-white font-bold py-2 rounded text-xs hover:bg-red-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-trash"></i> 현장 삭제</button>
+                            <button onclick="openEditSiteModal()" class="bg-gray-600 text-white font-bold py-2 rounded text-xs hover:bg-gray-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-pen"></i> 현장 수정</button>
+                        </div>
                     </div>
 
                     <div id="tool-default" class="space-y-2">
@@ -212,7 +212,7 @@
                         </div>
                     </div>
                     <div id="tool-drawing" class="hidden space-y-2">
-                         <div class="bg-yellow-50 p-2 rounded text-xs text-center border text-yellow-800 font-bold">그리기 모드 ON</div>
+                         <div class="bg-yellow-50 p-2 rounded text-xs text-center border text-yellow-800 font-bold">그리기 모드 ON <span class="text-[10px] block font-normal text-gray-600">지점을 클릭하여 구역을 만드세요</span></div>
                          <button id="btn-finish-draw" class="w-full bg-green-600 text-white font-bold py-2 rounded text-sm">완료</button>
                          <button id="btn-cancel-draw" onclick="cancelDrawing()" class="w-full bg-gray-200 text-gray-600 font-bold py-2 rounded text-sm">취소</button>
                     </div>
@@ -260,14 +260,6 @@
             <h3 class="text-lg font-bold mb-4" id="site-modal-title">새 현장 생성</h3>
             <input type="hidden" id="edit-site-id">
             <input type="text" id="new-site-name" placeholder="현장 이름" class="w-full border p-2 rounded mb-3">
-            
-            <div id="site-delete-wrapper" class="hidden mb-3 border-t pt-3">
-                <p class="text-[10px] text-red-500 mb-1 font-bold">⚠️ 위험: 삭제 시 복구 불가능</p>
-                <button onclick="deleteCurrentSite()" class="w-full bg-red-100 text-red-600 py-2 rounded font-bold border border-red-200 hover:bg-red-200 transition">
-                    <i class="fa-solid fa-trash-can"></i> 이 현장 영구 삭제
-                </button>
-            </div>
-
             <div class="flex gap-2"><button onclick="saveSiteData()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">저장</button><button onclick="document.getElementById('createSiteModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">취소</button></div>
         </div>
     </div>
@@ -279,7 +271,7 @@
             
             <div class="mb-3">
                 <label class="text-xs font-bold text-gray-600 block mb-1">구역 유형</label>
-                <select id="zone-type" class="w-full border p-2 rounded bg-white">
+                <select id="zone-type" class="w-full border p-2 rounded bg-white" onchange="handleZoneTypeChange()">
                     <option value="boundary">🏗️ 현장 경계 (Site Boundary)</option>
                     <option value="normal" selected>🟦 일반 작업 구역</option>
                     <option value="danger">🟥 위험/제한 구역</option>
@@ -288,13 +280,15 @@
             </div>
 
             <input type="text" id="zone-name" placeholder="구역 이름" class="w-full border p-2 rounded mb-3">
-            <div class="bg-gray-50 p-3 rounded border border-gray-200 mb-3">
-                <label class="text-xs font-bold text-gray-600 block mb-2">높이 설정 (3D)</label>
+            
+            <div id="height-config-area" class="bg-gray-50 p-3 rounded border border-gray-200 mb-3 hidden">
+                <label class="text-xs font-bold text-red-600 block mb-2"><i class="fa-solid fa-ruler-vertical"></i> 높이 제한 설정 (필수)</label>
                 <div class="flex gap-2 items-center">
                     <input type="number" id="zone-alt-min" value="-50" class="border w-16 text-center rounded p-1 text-sm" placeholder="최소"><span class="text-xs">m ~</span>
                     <input type="number" id="zone-alt-max" value="500" class="border w-16 text-center rounded p-1 text-sm" placeholder="최대"><span class="text-xs">m</span>
                 </div>
             </div>
+            
             <div class="flex gap-2"><button onclick="saveZone()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">저장</button><button onclick="document.getElementById('zoneModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">취소</button></div>
         </div>
     </div>
@@ -391,19 +385,18 @@
 
         let map, currentUser = null, currentSiteId = null;
         let zones = [], activeWorkers = [];
-        let mapLayers = { zones: [], users: [], temp: [] };
+        let mapLayers = { zones: [], users: [], temp: [], tempLine: null };
         let isDrawing = false, drawingPoints = [];
         let gpsWatchId = null;
         let currentAltitude = 0;
         let isOutOfRange = false, isFirstGPSFix = true;
         let unsubscribers = [];
         let editingZoneId = null;
-        let siteMap = {}; // Cache for site names
+        let siteMap = {};
 
         const getColRef = (name) => collection(db, 'artifacts', appId, 'public', 'data', name);
-        // ACL Helpers
         const isManager = (role) => ['super_admin', 'admin', 'safety', 'health', 'supervisor'].includes(role);
-        const isSiteAdmin = (role) => ['super_admin', 'admin', 'safety', 'health'].includes(role); // Delete & Full Access
+        const isSiteAdmin = (role) => ['super_admin', 'admin', 'safety', 'health'].includes(role); 
         const canCreateZone = (role) => isManager(role);
         const canDeleteZone = (role) => isSiteAdmin(role);
 
@@ -456,7 +449,7 @@
                 
                 snap.forEach(d => {
                     const s = d.data();
-                    siteMap[d.id] = s.name; // Cache name
+                    siteMap[d.id] = s.name; 
                     sel.innerHTML += `<option value="${d.id}">${s.name}</option>`;
                 });
                 if(currentVal) sel.value = currentVal;
@@ -491,7 +484,6 @@
             }
             if(currentUser.role === 'super_admin') {
                 document.getElementById('site-mgmt-tools').classList.remove('hidden');
-                document.getElementById('super-admin-controls').classList.remove('hidden');
                 loadSuperAdminSiteSelector();
             }
             if(currentUser.role === 'worker') document.getElementById('btn-my-info').classList.remove('hidden');
@@ -531,7 +523,6 @@
             sel.onchange = (e) => {
                 currentSiteId = e.target.value; 
                 subscribeData(); 
-                alert(`관제 현장이 변경되었습니다.`);
             };
         }
 
@@ -565,36 +556,33 @@
                     if(typeof z.points === 'string') z.points = JSON.parse(z.points);
                     zones.push(z);
                     
-                    // Visual Style based on Type
-                    let color = '#3b82f6'; // normal (blue)
+                    let color = '#3b82f6'; 
                     let dashArray = null;
                     let fillOpacity = 0.15;
                     
                     if(z.type === 'boundary') {
-                        color = '#000000'; // Black
+                        color = '#000000'; 
                         dashArray = '10, 10';
                         fillOpacity = 0.05;
                     } else if (z.type === 'danger' || z.isConfined) {
-                        color = '#ef4444'; // Red
+                        color = '#ef4444'; 
                     }
 
                     const poly = L.polygon(z.points, { color, fillColor: color, fillOpacity, weight: 2, dashArray }).addTo(map);
                     poly.bindTooltip(z.name);
                     
-                    // Allow clicking polygon to edit if permission allows
                     if(canCreateZone(currentUser.role)) {
                         poly.on('click', () => openZoneEdit(z));
                     }
                     mapLayers.zones.push(poly);
                     
-                    // List Item
                     const div = document.createElement('div');
                     div.className = "flex justify-between p-2 border rounded hover:bg-gray-50 cursor-pointer items-center mb-1";
                     
                     let btns = '';
                     if(canDeleteZone(currentUser.role)) {
                         btns += `<button onclick="window.deleteZone('${z.id}')" class="text-gray-400 hover:text-red-500 p-1"><i class="fa-solid fa-trash"></i></button>`;
-                    } else if (canCreateZone(currentUser.role)) { // Supervisor
+                    } else if (canCreateZone(currentUser.role)) { 
                          btns += `<button onclick='openZoneEdit(${JSON.stringify(z).replace(/'/g, "&#39;")})' class="text-gray-400 hover:text-blue-500 p-1"><i class="fa-solid fa-pen"></i></button>`;
                     }
 
@@ -701,7 +689,6 @@
              document.getElementById('site-modal-title').innerText = "새 현장 생성";
              document.getElementById('edit-site-id').value = "";
              document.getElementById('new-site-name').value = "";
-             document.getElementById('site-delete-wrapper').classList.add('hidden'); // New: Hide delete btn
              document.getElementById('createSiteModal').classList.remove('hidden');
         };
         window.openEditSiteModal = () => {
@@ -710,7 +697,6 @@
              document.getElementById('site-modal-title').innerText = "현장 정보 수정";
              document.getElementById('edit-site-id').value = currentSiteId;
              document.getElementById('new-site-name').value = siteName;
-             document.getElementById('site-delete-wrapper').classList.remove('hidden'); // New: Show delete btn
              document.getElementById('createSiteModal').classList.remove('hidden');
         };
         window.saveSiteData = async () => {
@@ -721,20 +707,19 @@
              else { await addDoc(getColRef('sites'), { name }); alert("생성 완료"); }
              document.getElementById('createSiteModal').classList.add('hidden');
         };
+        
+        // [New] Updated Delete Site Logic with Main UI Button
         window.deleteCurrentSite = async () => {
              if(currentUser.role !== 'super_admin') return alert("권한이 없습니다.");
-             const id = document.getElementById('edit-site-id').value;
-             if(confirm("정말 이 현장을 삭제하시겠습니까? \n\n※ 주의: 현장 정보가 영구 삭제됩니다.")) {
-                 await deleteDoc(doc(getColRef('sites'), id));
-                 alert("현장이 삭제되었습니다.");
-                 document.getElementById('createSiteModal').classList.add('hidden');
-                 
-                 // If deleted site was active, reset to 'all'
-                 if(currentSiteId === id) {
-                    currentSiteId = 'all'; 
-                    document.getElementById('super-admin-site-select').value = 'all';
-                    subscribeData();
-                 }
+             if(currentSiteId === 'all') return alert("삭제할 특정 현장을 목록에서 먼저 선택해주세요.");
+             
+             if(confirm(`[경고] 정말 '${siteMap[currentSiteId]}' 현장을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며 모든 데이터가 삭제됩니다.`)) {
+                 await deleteDoc(doc(getColRef('sites'), currentSiteId));
+                 alert("현장이 영구 삭제되었습니다.");
+                 // Reset to all
+                 document.getElementById('super-admin-site-select').value = 'all';
+                 currentSiteId = 'all'; 
+                 subscribeData();
              }
         };
 
@@ -745,18 +730,29 @@
             isDrawing = true; drawingPoints = []; 
             document.getElementById('tool-default').classList.add('hidden'); 
             document.getElementById('tool-drawing').classList.remove('hidden'); 
+            
+            // [New] Temp Polyline for visual connection
+            if(mapLayers.tempLine) map.removeLayer(mapLayers.tempLine);
+            mapLayers.tempLine = L.polyline([], {color: '#ef4444', dashArray: '5, 10', weight: 2}).addTo(map);
         };
+        
         window.cancelDrawing = () => { 
             isDrawing = false; 
             document.getElementById('tool-default').classList.remove('hidden'); 
             document.getElementById('tool-drawing').classList.add('hidden'); 
             mapLayers.temp.forEach(l=>map.removeLayer(l)); mapLayers.temp=[]; 
+            if(mapLayers.tempLine) { map.removeLayer(mapLayers.tempLine); mapLayers.tempLine = null; }
         };
+        
         window.addDrawingPoint = (latlng) => { 
             drawingPoints.push([latlng.lat, latlng.lng]); 
-            const m = L.circleMarker(latlng, {radius:4}).addTo(map); 
+            // Marker
+            const m = L.circleMarker(latlng, {radius:4, color: 'red'}).addTo(map); 
             mapLayers.temp.push(m); 
+            // Update Line
+            if(mapLayers.tempLine) mapLayers.tempLine.setLatLngs(drawingPoints);
         };
+        
         document.getElementById('btn-finish-draw').onclick = () => { 
             if(drawingPoints.length<3) return alert("3점 이상"); 
             editingZoneId = null; // New Zone
@@ -775,9 +771,17 @@
                 typeSelect.value = 'normal';
                 infoText.classList.add('hidden');
             }
-            
+            window.handleZoneTypeChange(); // Trigger visual update
             document.getElementById('zoneModal').classList.remove('hidden'); 
         };
+
+        // [New] Handle Height Visibility
+        window.handleZoneTypeChange = () => {
+            const type = document.getElementById('zone-type').value;
+            const heightArea = document.getElementById('height-config-area');
+            if(type === 'danger') heightArea.classList.remove('hidden');
+            else heightArea.classList.add('hidden');
+        }
 
         window.openZoneEdit = (z) => {
             if(!canCreateZone(currentUser.role)) return; // Double check
@@ -789,6 +793,7 @@
             document.getElementById('zone-alt-min').value = z.minAlt;
             document.getElementById('zone-alt-max').value = z.maxAlt;
             document.getElementById('zone-type-info').classList.add('hidden');
+            window.handleZoneTypeChange();
             document.getElementById('zoneModal').classList.remove('hidden');
         };
 
@@ -809,11 +814,8 @@
             };
             
             if(editingZoneId) {
-                // Update
-                // If Supervisor, they cannot edit 'site boundary' created by Admin? (Optional logic, currently allowed)
                 await updateDoc(doc(getColRef('zones'), editingZoneId), zoneData);
             } else {
-                // Create
                 await addDoc(getColRef('zones'), zoneData);
             }
             
