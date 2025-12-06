@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v9.55 (Safe Mode)</title>
+    <title>스마트 안전 관제 v9.56 (Force Mode)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -24,25 +24,23 @@
         .map-container { height: 100vh; width: 100%; z-index: 10; }
         .sos-btn { position: absolute; bottom: 100px; right: 20px; z-index: 1000; width: 60px; height: 60px; border-radius: 50%; background: #ef4444; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 15px rgba(239,68,68,0.5); border: 3px solid white; }
         .sos-btn:active { transform: scale(0.95); }
-        .toast { background: white; border-left: 6px solid #ef4444; padding: 16px; border-radius: 4px; box-shadow: 0 10px 15px rgba(0,0,0,0.1); margin-bottom: 10px; min-width: 300px; display: flex; align-items: center; gap: 10px; }
-        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
         #loading-screen { position: fixed; inset: 0; background: white; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #force-entry-btn { margin-top: 20px; padding: 10px 20px; background: #333; color: white; border-radius: 5px; font-size: 12px; display: none; cursor: pointer; }
     </style>
 </head>
 <body class="bg-gray-100 overflow-hidden h-screen w-screen">
 
     <div id="loading-screen">
         <div class="text-4xl animate-bounce mb-4">🛡️</div>
-        <p class="text-gray-500 font-bold">시스템 접속 중...</p>
+        <p class="text-gray-500 font-bold" id="loading-msg">시스템 리소스 로딩 중...</p>
+        <button id="force-entry-btn" onclick="forceEnter()">⚠️ 응답이 없으면 클릭 (강제 접속)</button>
     </div>
-
-    <div id="toast-container"></div>
 
     <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-90 hidden">
         <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md m-4">
             <div class="text-center mb-6">
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">v9.55 Stable</p>
+                <p class="text-sm text-gray-500">v9.56 Force Mode</p>
             </div>
 
             <div class="flex border-b mb-4">
@@ -89,7 +87,6 @@
         <div class="flex-1 relative">
             <div id="map" class="h-full w-full"></div>
             <button onclick="triggerSOS()" class="sos-btn shadow-lg">SOS</button>
-            
             <div class="absolute top-4 left-4 bg-white/90 p-3 rounded shadow z-[500] text-xs">
                 <div class="font-bold mb-1">GPS 상태: <span id="gps-status" class="text-green-600">연결 대기</span></div>
                 <div>정확도: <span id="gps-acc">-</span> m</div>
@@ -98,7 +95,22 @@
     </div>
 
     <script>
-        // 1. Firebase 설정 (compat 방식)
+        // 0. 강제 접속 기능 (가장 먼저 실행)
+        function forceEnter() {
+            document.getElementById('loading-screen').classList.add('hidden');
+            document.getElementById('auth-screen').classList.remove('hidden');
+        }
+        
+        // 3초 뒤에도 로딩 안 끝나면 '강제 접속 버튼' 표시
+        setTimeout(() => {
+            const loading = document.getElementById('loading-screen');
+            if (!loading.classList.contains('hidden')) {
+                document.getElementById('loading-msg').innerText = "접속이 지연되고 있습니다.";
+                document.getElementById('force-entry-btn').style.display = 'block';
+            }
+        }, 3000);
+
+        // 1. Firebase 설정
         const firebaseConfig = {
             apiKey: "AIzaSyCMWQa-O2m8BB0XHzhXlYfdy3smIsgKs0A",
             authDomain: "smart-safety-monitor-37649.firebaseapp.com",
@@ -109,31 +121,32 @@
             measurementId: "G-E73V9VHXR3"
         };
 
-        // Firebase 초기화 (에러 방지)
         let app, auth, db;
         try {
-            app = firebase.initializeApp(firebaseConfig);
-            auth = firebase.auth();
-            db = firebase.firestore();
-            console.log("Firebase 연결 성공");
+            if (typeof firebase !== 'undefined') {
+                app = firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                db = firebase.firestore();
+            } else {
+                console.error("Firebase SDK 로드 실패");
+            }
         } catch (e) {
-            alert("서버 연결 실패: " + e.message);
+            console.error("Firebase 초기화 에러: ", e);
         }
 
         const appId = "default-app-id";
         let map, currentUser = null;
         let markers = {}; 
 
-        // 2. 페이지 로드 완료 시 실행
+        // 2. 페이지 로드 완료 시
         document.addEventListener('DOMContentLoaded', () => {
-            // 로딩 화면 제거
+            // 정상 로딩 시 1초 뒤 자동 진입
             setTimeout(() => {
-                document.getElementById('loading-screen').classList.add('hidden');
-                document.getElementById('auth-screen').classList.remove('hidden');
-                loadSites();
+                forceEnter();
+                if(db) loadSites();
             }, 1000);
 
-            // 탭 전환 기능
+            // 탭 및 버튼 이벤트 연결
             document.getElementById('tab-login').onclick = () => {
                 document.getElementById('form-login').classList.remove('hidden');
                 document.getElementById('form-signup').classList.add('hidden');
@@ -147,17 +160,14 @@
                 document.getElementById('tab-login').className = "flex-1 py-2 text-gray-500";
             };
 
-            // 비밀번호 보이기 기능
             document.getElementById('btn-show-pw').onclick = () => {
                 const pw = document.getElementById('login-pw');
                 pw.type = pw.type === 'password' ? 'text' : 'password';
             };
 
-            // 버튼 클릭 이벤트 연결
             document.getElementById('btn-login').onclick = handleLogin;
             document.getElementById('btn-signup').onclick = handleSignup;
             
-            // 자동 로그인 체크
             const saved = localStorage.getItem('savedUser');
             if(saved) {
                 try { currentUser = JSON.parse(saved); startSession(); } catch(e){}
@@ -166,16 +176,16 @@
 
         // 3. 로그인 함수
         async function handleLogin() {
+            if (!auth) return alert("서버 연결에 실패했습니다. 인터넷 상태를 확인하거나 페이지를 새로고침하세요.");
             const id = document.getElementById('login-id').value;
             const pw = document.getElementById('login-pw').value;
             
             if(!id || !pw) return alert("아이디와 비밀번호를 입력하세요.");
             
             try {
-                // 익명 인증 시도 (DB 읽기 권한 확보용)
                 if (!auth.currentUser) await auth.signInAnonymously();
 
-                // 최고 관리자 자동 생성
+                // 최고 관리자 생성
                 if(id === 'dark584' && pw === 'Rufghs0423!!') {
                     const check = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').where('id', '==', 'dark584').get();
                     if(check.empty) {
@@ -185,14 +195,10 @@
                     }
                 }
 
-                // 사용자 조회
                 const snapshot = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users')
                     .where('id', '==', id).where('pw', '==', pw).get();
 
-                if (snapshot.empty) {
-                    alert("아이디 또는 비밀번호가 틀렸습니다.");
-                    return;
-                }
+                if (snapshot.empty) return alert("아이디 또는 비밀번호가 틀렸습니다.");
 
                 const userDoc = snapshot.docs[0];
                 const userData = userDoc.data();
@@ -209,13 +215,13 @@
                 startSession();
 
             } catch (error) {
-                console.error(error);
                 alert("로그인 에러: " + error.message);
             }
         }
 
         // 4. 회원가입 함수
         async function handleSignup() {
+            if (!auth) return alert("서버 연결 실패");
             const id = document.getElementById('reg-id').value;
             const name = document.getElementById('reg-name').value;
             const pw = document.getElementById('reg-pw').value;
@@ -234,7 +240,7 @@
                     id, name, pw, siteId, role, approved: false, createdAt: Date.now()
                 });
 
-                alert("가입 신청이 완료되었습니다. 관리자 승인을 기다리세요.");
+                alert("가입 신청 완료! 관리자 승인을 기다리세요.");
                 document.getElementById('tab-login').click();
 
             } catch (error) {
@@ -242,41 +248,33 @@
             }
         }
 
-        // 5. 세션 시작 (지도 로드)
         function startSession() {
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('main-dashboard').classList.remove('hidden');
             document.getElementById('user-display').innerText = `${currentUser.name}`;
 
-            // 지도 초기화
             if(!map) {
                 map = L.map('map').setView([38.205, 127.115], 15);
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
             }
 
-            // GPS 시작
             if(navigator.geolocation) {
                 navigator.geolocation.watchPosition(
                     (pos) => {
                         const { latitude, longitude, accuracy } = pos.coords;
                         document.getElementById('gps-status').innerText = "정상🟢";
                         document.getElementById('gps-acc').innerText = Math.round(accuracy);
-                        
-                        // 내 위치 서버 전송
                         updateMyPosition(latitude, longitude);
                     },
                     (err) => { document.getElementById('gps-status').innerText = "신호 약함🔴"; },
                     { enableHighAccuracy: true }
                 );
             }
-            
-            // 다른 작업자 위치 구독
             subscribeWorkers();
         }
 
         async function updateMyPosition(lat, lng) {
-            if(!currentUser) return;
-            // workers 컬렉션에 내 위치 업데이트
+            if(!currentUser || !db) return;
             await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('workers').doc(currentUser.id).set({
                 name: currentUser.name,
                 role: currentUser.role,
@@ -289,6 +287,7 @@
         }
 
         function subscribeWorkers() {
+            if (!db) return;
             let query = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('workers');
             if(currentUser.siteId !== 'all') {
                 query = query.where('siteId', '==', currentUser.siteId);
@@ -297,9 +296,7 @@
             query.onSnapshot((snapshot) => {
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    if(data.id === currentUser.id) return; // 내 건 건너뜀
-
-                    // 마커 표시
+                    if(data.id === currentUser.id) return;
                     if(markers[doc.id]) map.removeLayer(markers[doc.id]);
                     const marker = L.circleMarker([data.lat, data.lng], {
                         radius: 6, color: data.isSOS ? 'red' : 'blue'
@@ -310,7 +307,6 @@
         }
 
         function loadSites() {
-            // 현장 목록 불러오기 (에러 시 무시)
             try {
                 if (!auth.currentUser) auth.signInAnonymously();
                 db.collection('artifacts').doc(appId).collection('public').doc('data').collection('sites').onSnapshot(snap => {
@@ -329,7 +325,7 @@
         };
 
         window.triggerSOS = function() {
-            if(currentUser) {
+            if(currentUser && db) {
                 db.collection('artifacts').doc(appId).collection('public').doc('data').collection('workers').doc(currentUser.id).set({
                     isSOS: true
                 }, { merge: true });
