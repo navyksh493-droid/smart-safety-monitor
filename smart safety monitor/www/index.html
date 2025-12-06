@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v9.8 (SOS Full-Screen & Draw Fix)</title>
+    <title>스마트 안전 관제 v10.0 (Unified Delete)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -21,15 +21,12 @@
         body { font-family: 'Noto Sans KR', sans-serif; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
         .map-container { height: 100vh; width: 100%; z-index: 10; }
         
-        /* SOS 전체 화면 점멸 애니메이션 */
+        /* SOS Flash Animation */
         #sos-overlay { pointer-events: none; z-index: 9998; mix-blend-mode: multiply; }
         .sos-active-bg { animation: sos-flash-bg 1s infinite alternate; background-color: rgba(255, 0, 0, 0.4); display: block !important; }
-        @keyframes sos-flash-bg { 
-            0% { background-color: rgba(255, 0, 0, 0.1); } 
-            100% { background-color: rgba(255, 0, 0, 0.5); } 
-        }
+        @keyframes sos-flash-bg { 0% { background-color: rgba(255, 0, 0, 0.1); } 100% { background-color: rgba(255, 0, 0, 0.5); } }
 
-        /* 마커 링 애니메이션 */
+        /* Marker Rings */
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
         @keyframes pulse-purple { 0% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(147, 51, 234, 0); } 100% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0); } }
         
@@ -106,7 +103,7 @@
             <div class="mb-6 flex flex-col items-center">
                 <img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon">
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">System Admin v9.8</p>
+                <p class="text-sm text-gray-500">System Admin v10.0</p>
             </div>
             
             <div class="flex border-b mb-4 w-full">
@@ -199,20 +196,16 @@
                 <div id="admin-tools" class="hidden bg-white p-4 rounded shadow-sm border border-blue-100">
                     <h3 class="font-bold text-blue-800 text-sm mb-2 flex justify-between">관리자 도구</h3>
                     
-                    <div id="site-mgmt-tools" class="hidden border-b pb-4 mb-4">
+                    <div id="super-admin-dropdown-area" class="hidden mb-3 border-b pb-2">
                         <label class="text-[10px] font-bold text-gray-500 block mb-1">관리할 현장 선택</label>
-                        <select id="super-admin-site-select" class="w-full text-xs border border-blue-300 rounded p-2 bg-blue-50 font-bold mb-3 shadow-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        <select id="super-admin-site-select" class="w-full text-xs border border-blue-300 rounded p-2 bg-blue-50 font-bold shadow-sm focus:ring-2 focus:ring-blue-500 outline-none">
                             <option value="all">🌐 모든 현장 보기 (통합)</option>
                         </select>
-                        <div class="grid grid-cols-3 gap-1">
-                            <button onclick="openCreateSiteModal()" class="bg-blue-600 text-white font-bold py-2 rounded text-xs hover:bg-blue-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-plus"></i> 현장 생성</button>
-                            <button onclick="deleteCurrentSite()" class="bg-red-600 text-white font-bold py-2 rounded text-xs hover:bg-red-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-trash"></i> 현장 삭제</button>
-                            <button onclick="openEditSiteModal()" class="bg-gray-600 text-white font-bold py-2 rounded text-xs hover:bg-gray-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-pen"></i> 현장 수정</button>
-                        </div>
                     </div>
 
+                    <div id="admin-button-area" class="mb-3"></div>
+
                     <div id="tool-default" class="space-y-2">
-                        <button id="btn-start-draw" onclick="startDrawing()" class="w-full bg-blue-50 border border-blue-200 text-blue-700 font-bold py-2 rounded text-sm hover:bg-blue-100"><i class="fa-solid fa-draw-polygon"></i> 구역 그리기</button>
                         <div class="bg-gray-50 p-2 rounded border border-gray-200">
                             <label class="text-xs font-bold text-gray-600 block mb-1">계절 위험 관리</label>
                             <select id="seasonal-risk-select" class="w-full text-xs p-1 border rounded" onchange="updateSeasonalRisk(this.value)">
@@ -222,6 +215,7 @@
                             </select>
                         </div>
                     </div>
+
                     <div id="tool-drawing" class="hidden space-y-2">
                          <div class="bg-yellow-50 p-2 rounded text-xs text-center border text-yellow-800 font-bold">그리기 모드 ON <span class="text-[10px] block font-normal text-gray-600">지점을 클릭하여 구역을 만드세요</span></div>
                          <button id="btn-finish-draw" class="w-full bg-green-600 text-white font-bold py-2 rounded text-sm">완료</button>
@@ -272,6 +266,24 @@
             <input type="hidden" id="edit-site-id">
             <input type="text" id="new-site-name" placeholder="현장 이름" class="w-full border p-2 rounded mb-3">
             <div class="flex gap-2"><button onclick="saveSiteData()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">저장</button><button onclick="document.getElementById('createSiteModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">취소</button></div>
+        </div>
+    </div>
+
+    <div id="deleteSelectionModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2300] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 w-full max-w-sm text-center shadow-xl">
+            <h3 class="text-lg font-bold mb-4 text-red-700"><i class="fa-solid fa-trash-can"></i> 삭제 관리</h3>
+            <p class="text-sm text-gray-600 mb-6">삭제할 대상을 선택하세요.</p>
+            
+            <div class="space-y-3 mb-4">
+                <button onclick="deleteCurrentSite()" class="w-full bg-red-100 text-red-700 py-3 rounded-lg font-bold border border-red-300 hover:bg-red-200 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-building-circle-xmark"></i> 현재 현장 영구 삭제
+                </button>
+                <button onclick="showDeleteZoneHint(); document.getElementById('deleteSelectionModal').classList.add('hidden');" class="w-full bg-blue-50 text-blue-700 py-3 rounded-lg font-bold border border-blue-200 hover:bg-blue-100 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-eraser"></i> 개별 구역 삭제
+                </button>
+            </div>
+            
+            <button onclick="document.getElementById('deleteSelectionModal').classList.add('hidden')" class="w-full bg-gray-200 text-gray-700 py-2 rounded font-bold">취소</button>
         </div>
     </div>
 
@@ -392,7 +404,7 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         
         const SITE_CENTER = { lat: 37.5665, lng: 126.9780 };
-        const MAX_DISTANCE_KM = 0.1; // 100m
+        const MAX_DISTANCE_KM = 0.1; 
 
         let map, currentUser = null, currentSiteId = null;
         let zones = [], activeWorkers = [];
@@ -404,11 +416,11 @@
         let unsubscribers = [];
         let editingZoneId = null;
         let siteMap = {};
-
-        // SOS Interval Var
         let sosInterval = null;
 
         const getColRef = (name) => collection(db, 'artifacts', appId, 'public', 'data', name);
+        
+        // ACL Helpers
         const isManager = (role) => ['super_admin', 'admin', 'safety', 'health', 'supervisor'].includes(role);
         const isSiteAdmin = (role) => ['super_admin', 'admin', 'safety', 'health'].includes(role); 
         const canCreateZone = (role) => isManager(role);
@@ -495,11 +507,9 @@
             if(isManager(currentUser.role)) {
                 document.getElementById('admin-tools').classList.remove('hidden');
                 document.getElementById('tab-users').classList.remove('hidden');
+                updateAdminToolsUI(); // Set up buttons based on role
             }
-            if(currentUser.role === 'super_admin') {
-                document.getElementById('site-mgmt-tools').classList.remove('hidden');
-                loadSuperAdminSiteSelector();
-            }
+            
             if(currentUser.role === 'worker') document.getElementById('btn-my-info').classList.remove('hidden');
 
             enableNoSleep();
@@ -508,6 +518,55 @@
             startGPS();
             setInterval(renderDangerList, 1000);
         }
+
+        // [UI Update Logic]
+        function updateAdminToolsUI() {
+            const role = currentUser.role;
+            const btnArea = document.getElementById('admin-button-area');
+            const dropdownArea = document.getElementById('super-admin-dropdown-area');
+            
+            btnArea.innerHTML = ''; 
+
+            // 1. Super Admin Layout (2x2)
+            if (role === 'super_admin') {
+                dropdownArea.classList.remove('hidden');
+                loadSuperAdminSiteSelector();
+                btnArea.innerHTML = `
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="openCreateSiteModal()" class="bg-blue-600 text-white font-bold py-3 rounded text-xs hover:bg-blue-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-plus"></i> 현장 생성</button>
+                        <button onclick="openDeleteSelectionModal()" class="bg-red-600 text-white font-bold py-3 rounded text-xs hover:bg-red-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-trash-can"></i> 삭제 관리</button>
+                        <button onclick="openEditSiteModal()" class="bg-gray-600 text-white font-bold py-3 rounded text-xs hover:bg-gray-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-pen"></i> 현장 수정</button>
+                        <button onclick="startDrawing()" class="bg-purple-600 text-white font-bold py-3 rounded text-xs hover:bg-purple-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-draw-polygon"></i> 구역 생성</button>
+                    </div>
+                `;
+            } 
+            // 2. Site Admin / Safety / Health (1x3)
+            else if (['admin', 'safety', 'health'].includes(role)) {
+                dropdownArea.classList.add('hidden');
+                btnArea.innerHTML = `
+                    <div class="grid grid-cols-3 gap-1">
+                        <button onclick="startDrawing()" class="bg-blue-600 text-white font-bold py-3 rounded text-xs hover:bg-blue-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-draw-polygon"></i> 구역 생성</button>
+                        <button onclick="showDeleteZoneHint()" class="bg-red-100 text-red-600 font-bold py-3 rounded text-xs hover:bg-red-200 flex items-center justify-center gap-1 shadow-sm border border-red-200"><i class="fa-solid fa-trash-can"></i> 구역 삭제</button>
+                        <button onclick="showEditZoneHint()" class="bg-gray-100 text-gray-700 font-bold py-3 rounded text-xs hover:bg-gray-200 flex items-center justify-center gap-1 shadow-sm border border-gray-300"><i class="fa-solid fa-pen-to-square"></i> 구역 수정</button>
+                    </div>
+                `;
+            }
+            // 3. Supervisor (1x2)
+            else if (role === 'supervisor') {
+                dropdownArea.classList.add('hidden');
+                btnArea.innerHTML = `
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="startDrawing()" class="bg-blue-600 text-white font-bold py-3 rounded text-xs hover:bg-blue-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-draw-polygon"></i> 구역 생성</button>
+                        <button onclick="showEditZoneHint()" class="bg-gray-100 text-gray-700 font-bold py-3 rounded text-xs hover:bg-gray-200 flex items-center justify-center gap-1 shadow-sm border border-gray-300"><i class="fa-solid fa-pen-to-square"></i> 구역 수정</button>
+                    </div>
+                `;
+            }
+        }
+
+        // New Modal Logic
+        window.openDeleteSelectionModal = () => document.getElementById('deleteSelectionModal').classList.remove('hidden');
+        window.showDeleteZoneHint = () => alert("삭제하려는 구역을 아래 '구역 목록'에서 찾아 휴지통 아이콘을 클릭하세요.");
+        window.showEditZoneHint = () => alert("수정하려는 구역을 지도에서 클릭하거나, 목록의 연필 아이콘을 클릭하세요.");
 
         window.handleSignup = async () => {
             const id = document.getElementById('reg-id').value;
@@ -584,7 +643,6 @@
 
                     const poly = L.polygon(z.points, { color, fillColor: color, fillOpacity, weight: 2, dashArray }).addTo(map);
                     
-                    // [Fix] Site Boundary Breakage: Move boundary to back so new zones draw ON TOP
                     if(z.type === 'boundary') {
                         poly.bringToBack();
                     }
@@ -693,10 +751,8 @@
             const btn = document.getElementById('btn-sos');
             const isSOSNow = btn.classList.contains('active');
             
-            // Toggle Logic
             if(!isSOSNow) { 
                 btn.classList.add('active'); 
-                // Visual feedback immediate
                 showToast("🆘 구조 요청(SOS)을 전송합니다!", "danger");
             } else { 
                 btn.classList.remove('active'); 
@@ -705,31 +761,25 @@
             await updateDoc(doc(getColRef('workers'), currentUser.id), { isSOS: !isSOSNow });
         };
 
-        // [Enhanced] SOS Check with Interval & Full Screen Flash
         function checkSOS() {
             const sosWorkers = activeWorkers.filter(w => w.isSOS);
             const overlay = document.getElementById('sos-overlay');
             const btn = document.getElementById('btn-sos');
 
-            // Logic to sync button state if triggered by another device for same user
             const myStatus = sosWorkers.find(w => w.id === currentUser.id);
             if(myStatus && !btn.classList.contains('active')) btn.classList.add('active');
             if(!myStatus && btn.classList.contains('active')) btn.classList.remove('active');
 
             if(sosWorkers.length > 0) {
-                // Activate Alarm Mode
                 if(overlay.classList.contains('hidden')) {
                     overlay.classList.remove('hidden');
                     overlay.classList.add('sos-active-bg');
                 }
-
-                // Start 10s Interval if not running
                 if(!sosInterval) {
-                    triggerSOSAlarm(sosWorkers); // Immediate
+                    triggerSOSAlarm(sosWorkers);
                     sosInterval = setInterval(() => triggerSOSAlarm(sosWorkers), 10000);
                 }
             } else {
-                // Deactivate Alarm Mode
                 overlay.classList.add('hidden');
                 overlay.classList.remove('sos-active-bg');
                 if(sosInterval) {
@@ -740,10 +790,7 @@
         }
 
         function triggerSOSAlarm(workers) {
-            // Vibrate (Mobile)
             if(navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 1000]);
-            
-            // Toast / Sound logic here
             const names = workers.map(u => u.name).join(', ');
             showToast(`🚨 긴급! ${names} 님이 구조 요청 중!`, "danger");
         }
@@ -779,6 +826,7 @@
                  await deleteDoc(doc(getColRef('sites'), currentSiteId));
                  alert("현장이 영구 삭제되었습니다.");
                  document.getElementById('super-admin-site-select').value = 'all';
+                 document.getElementById('deleteSelectionModal').classList.add('hidden');
                  currentSiteId = 'all'; 
                  subscribeData();
              }
@@ -789,7 +837,6 @@
             if(!canCreateZone(currentUser.role)) return alert("권한이 없습니다.");
             if(currentSiteId === 'all') return alert("전체 관제 모드에서는 구역 생성이 불가능합니다. 특정 현장을 선택하세요.");
             
-            // [Fix] Clear previous drawing points absolutely
             isDrawing = true; 
             drawingPoints = []; 
             mapLayers.temp.forEach(l => map.removeLayer(l)); 
@@ -799,7 +846,6 @@
             document.getElementById('tool-default').classList.add('hidden'); 
             document.getElementById('tool-drawing').classList.remove('hidden'); 
             
-            // Init Visual Line
             mapLayers.tempLine = L.polyline([], {color: '#ef4444', dashArray: '5, 10', weight: 2}).addTo(map);
         };
         
@@ -820,7 +866,7 @@
         
         document.getElementById('btn-finish-draw').onclick = () => { 
             if(drawingPoints.length<3) return alert("3점 이상"); 
-            editingZoneId = null; // New Zone
+            editingZoneId = null; 
             document.getElementById('zone-modal-title').innerText = "새 구역 저장";
             document.getElementById('zone-name').value = "";
             
@@ -835,7 +881,7 @@
                 typeSelect.value = 'normal';
                 infoText.classList.add('hidden');
             }
-            window.handleZoneTypeChange(); // Visual update
+            window.handleZoneTypeChange(); 
             document.getElementById('zoneModal').classList.remove('hidden'); 
         };
 
