@@ -3,104 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v9.57 (Direct)</title>
-    
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#1e3a8a">
-    <link rel="icon" id="favicon" href="">
-
+    <title>스마트 안전 관제 v9.60 (Diagnosis)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js" defer></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js" defer></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js" defer></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
     <style>
-        body { font-family: 'Noto Sans KR', sans-serif; user-select: none; }
-        .map-container { height: 100vh; width: 100%; z-index: 10; }
-        .sos-btn { position: absolute; bottom: 100px; right: 20px; z-index: 1000; width: 60px; height: 60px; border-radius: 50%; background: #ef4444; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 15px rgba(239,68,68,0.5); border: 3px solid white; }
-        .sos-btn:active { transform: scale(0.95); }
-        /* 로딩 화면 삭제함 */
-        /* #loading-screen { display: none; } */
+        body { font-family: 'Noto Sans KR', sans-serif; background: #f3f4f6; padding: 20px; }
+        #console-log { 
+            width: 100%; height: 200px; 
+            background: black; color: #00ff00; 
+            font-family: monospace; font-size: 12px; 
+            padding: 10px; overflow-y: scroll; 
+            border-radius: 8px; margin-top: 20px;
+            white-space: pre-wrap;
+        }
     </style>
 </head>
-<body class="bg-gray-100 overflow-hidden h-screen w-screen">
+<body class="flex flex-col items-center">
 
-    <div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
+    <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md text-center">
+        <h1 class="text-2xl font-bold mb-2">시스템 진단 모드</h1>
+        <p class="text-xs text-gray-500 mb-6">로그인이 안 되는 정확한 원인을 찾습니다.</p>
 
-    <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-90">
-        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md m-4">
-            <div class="text-center mb-6">
-                <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">v9.57 Direct Access</p>
-                <p id="system-status" class="text-xs text-blue-500 mt-1 font-bold animate-pulse">시스템 연결 대기 중...</p>
+        <div class="space-y-4 text-left">
+            <div>
+                <label class="text-xs font-bold text-gray-500">테스트 아이디</label>
+                <input type="text" id="login-id" value="dark584" class="w-full border p-2 rounded">
             </div>
-
-            <div class="flex border-b mb-4">
-                <button id="tab-login" class="flex-1 py-2 font-bold text-blue-600 border-b-2 border-blue-600">로그인</button>
-                <button id="tab-signup" class="flex-1 py-2 text-gray-500">회원가입</button>
+            <div>
+                <label class="text-xs font-bold text-gray-500">비밀번호</label>
+                <input type="text" id="login-pw" value="Rufghs0423!!" class="w-full border p-2 rounded">
             </div>
-
-            <div id="form-login" class="space-y-4">
-                <input type="text" id="login-id" placeholder="아이디" class="w-full border p-3 rounded">
-                <div class="relative">
-                    <input type="password" id="login-pw" placeholder="비밀번호" class="w-full border p-3 rounded">
-                    <button id="btn-show-pw" class="absolute right-3 top-3 text-gray-400"><i class="fa-solid fa-eye"></i></button>
-                </div>
-                <div class="flex items-center gap-2">
-                    <input type="checkbox" id="auto-login-check" class="w-4 h-4">
-                    <label for="auto-login-check" class="text-sm">자동 로그인</label>
-                </div>
-                <button id="btn-login" class="w-full bg-blue-800 text-white py-3 rounded font-bold shadow-lg">로그인 (즉시 실행)</button>
-            </div>
-
-            <div id="form-signup" class="space-y-4 hidden">
-                <input type="text" id="reg-id" placeholder="아이디" class="w-full border p-3 rounded">
-                <input type="text" id="reg-name" placeholder="이름" class="w-full border p-3 rounded">
-                <input type="password" id="reg-pw" placeholder="비밀번호" class="w-full border p-3 rounded">
-                <div class="border p-2 rounded bg-gray-50">
-                    <label class="text-xs font-bold text-gray-500">현장 선택</label>
-                    <select id="reg-site" class="w-full border p-2 rounded bg-white">
-                        <option value="site1">기본 현장</option>
-                    </select>
-                </div>
-                <select id="reg-role" class="w-full border p-3 rounded bg-white">
-                    <option value="worker">근로자</option>
-                    <option value="admin">현장소장</option>
-                    <option value="safety">안전관리자</option>
-                </select>
-                <button id="btn-signup" class="w-full bg-green-600 text-white py-3 rounded font-bold">가입 신청</button>
-            </div>
+            
+            <button id="btn-diagnose" class="w-full bg-blue-600 text-white py-3 rounded font-bold hover:bg-blue-700">
+                🚀 진단 시작 (클릭)
+            </button>
         </div>
     </div>
 
-    <div id="main-dashboard" class="hidden h-screen flex flex-col">
-        <div class="bg-slate-800 text-white p-4 flex justify-between items-center z-50 shadow">
-            <div class="font-bold">관제 상황실 <span id="user-display" class="text-xs font-normal text-gray-300 ml-2"></span></div>
-            <button onclick="logout()" class="text-xs bg-slate-700 px-3 py-1 rounded">로그아웃</button>
-        </div>
-        <div class="flex-1 relative">
-            <div id="map" class="h-full w-full"></div>
-            <button onclick="triggerSOS()" class="sos-btn shadow-lg">SOS</button>
-            <div class="absolute top-4 left-4 bg-white/90 p-3 rounded shadow z-[500] text-xs">
-                <div class="font-bold mb-1">GPS 상태: <span id="gps-status" class="text-green-600">연결 대기</span></div>
-                <div>정확도: <span id="gps-acc">-</span> m</div>
-            </div>
-        </div>
-    </div>
+    <div id="console-log">대기 중... 버튼을 눌러주세요.</div>
 
     <script>
-        // 전역 변수 선언
-        let app, auth, db;
-        const appId = "default-app-id";
-        let map, currentUser = null;
-        let markers = {};
+        // 화면에 로그 찍는 함수
+        function log(msg) {
+            const box = document.getElementById('console-log');
+            const time = new Date().toLocaleTimeString();
+            box.innerHTML += `\n[${time}] ${msg}`;
+            box.scrollTop = box.scrollHeight;
+        }
 
-        // 1. Firebase 설정
         const firebaseConfig = {
             apiKey: "AIzaSyCMWQa-O2m8BB0XHzhXlYfdy3smIsgKs0A",
             authDomain: "smart-safety-monitor-37649.firebaseapp.com",
@@ -111,190 +65,76 @@
             measurementId: "G-E73V9VHXR3"
         };
 
-        // 2. 초기화 (페이지 로드 후 실행)
-        window.addEventListener('load', () => {
-            // Firebase 초기화 시도
+        let app, auth, db;
+        const appId = "default-app-id";
+
+        document.getElementById('btn-diagnose').onclick = async () => {
+            document.getElementById('console-log').innerHTML = "=== 진단 시작 ===";
+            
             try {
-                if (typeof firebase !== 'undefined') {
-                    app = firebase.initializeApp(firebaseConfig);
-                    auth = firebase.auth();
-                    db = firebase.firestore();
-                    document.getElementById('system-status').innerText = "시스템 연결 완료 🟢";
-                    document.getElementById('system-status').className = "text-xs text-green-600 mt-1 font-bold";
-                    loadSites(); // 현장 목록 로드
+                // 1. 초기화 확인
+                log("1. Firebase 초기화 중...");
+                if (typeof firebase === 'undefined') throw new Error("Firebase SDK 로드 실패");
+                app = firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                db = firebase.firestore();
+                log("✅ 초기화 성공!");
+
+                // 2. 익명 로그인 확인
+                log("2. 서버 접속(익명 인증) 시도...");
+                await auth.signInAnonymously();
+                const user = auth.currentUser;
+                if(user) {
+                    log(`✅ 접속 성공! (UID: ${user.uid.substring(0,5)}...)`);
                 } else {
-                    document.getElementById('system-status').innerText = "서버 연결 지연 (잠시 후 다시 시도하세요)";
+                    throw new Error("접속 실패 (User null)");
                 }
-            } catch (e) {
-                console.error("Firebase Init Error:", e);
-                document.getElementById('system-status').innerText = "연결 오류: " + e.message;
-            }
 
-            // 탭 전환
-            document.getElementById('tab-login').onclick = () => {
-                document.getElementById('form-login').classList.remove('hidden');
-                document.getElementById('form-signup').classList.add('hidden');
-            };
-            document.getElementById('tab-signup').onclick = () => {
-                document.getElementById('form-login').classList.add('hidden');
-                document.getElementById('form-signup').classList.remove('hidden');
-            };
+                // 3. DB 읽기/쓰기 권한 확인 (가장 중요!)
+                log("3. 데이터베이스 권한 테스트...");
+                const testRef = db.collection('test_logs').doc('connection_check');
+                try {
+                    await testRef.set({ check: true, time: Date.now() });
+                    log("✅ DB 쓰기 성공 (권한 있음)");
+                } catch(e) {
+                    log("❌ DB 쓰기 실패! (이게 원인입니다)");
+                    log("에러 내용: " + e.message);
+                    if(e.code === 'permission-denied') {
+                        log("💡 해결책: Firestore '규칙(Rules)' 탭에서 권한을 허용해야 합니다.");
+                    }
+                    return; // 여기서 중단
+                }
 
-            // 버튼 연결
-            document.getElementById('btn-show-pw').onclick = () => {
-                const pw = document.getElementById('login-pw');
-                pw.type = pw.type === 'password' ? 'text' : 'password';
-            };
-            document.getElementById('btn-login').onclick = handleLogin;
-            document.getElementById('btn-signup').onclick = handleSignup;
+                // 4. 사용자 계정 조회
+                const id = document.getElementById('login-id').value;
+                const pw = document.getElementById('login-pw').value;
+                log(`4. 계정 조회 시도 (ID: ${id})`);
 
-            // 자동 로그인
-            const saved = localStorage.getItem('savedUser');
-            if(saved) {
-                try { currentUser = JSON.parse(saved); startSession(); } catch(e){}
-            }
-        });
+                const q = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users')
+                    .where('id', '==', id).where('pw', '==', pw).get();
 
-        // 3. 로그인 로직
-        async function handleLogin() {
-            // 방어 코드: Firebase 로드 안됐으면 알림
-            if (!auth) {
-                alert("서버와 연결 중입니다. 3초 뒤에 다시 눌러주세요.");
-                return; 
-            }
-
-            const id = document.getElementById('login-id').value;
-            const pw = document.getElementById('login-pw').value;
-            
-            if(!id || !pw) return alert("아이디/비번을 입력하세요.");
-            
-            try {
-                if (!auth.currentUser) await auth.signInAnonymously();
-
-                // 최고 관리자 생성 (자동)
-                if(id === 'dark584' && pw === 'Rufghs0423!!') {
-                    const check = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').where('id', '==', 'dark584').get();
-                    if(check.empty) {
+                if (q.empty) {
+                    log("⚠️ 조회 결과 없음 (계정이 존재하지 않음)");
+                    log("-> 자동 생성 시도...");
+                    
+                    if(id === 'dark584') {
                         await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').add({
                             id: 'dark584', pw: 'Rufghs0423!!', name: '최고 관리자', role: 'super_admin', approved: true, siteId: 'all'
                         });
+                        log("✅ 관리자 계정 생성 완료! 다시 버튼을 눌러보세요.");
+                    } else {
+                        log("❌ 일반 계정은 회원가입부터 하세요.");
                     }
+                } else {
+                    const userData = q.docs[0].data();
+                    log(`🎉 로그인 성공! 이름: ${userData.name}`);
+                    log("결론: 시스템은 정상입니다. 원래 코드로 복구해도 됩니다.");
                 }
 
-                const snapshot = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users')
-                    .where('id', '==', id).where('pw', '==', pw).get();
-
-                if (snapshot.empty) return alert("정보가 일치하지 않습니다.");
-
-                const userData = snapshot.docs[0].data();
-                userData.docId = snapshot.docs[0].id;
-
-                if (!userData.approved) return alert("승인 대기 중입니다.");
-
-                currentUser = userData;
-                if(document.getElementById('auto-login-check').checked) {
-                    localStorage.setItem('savedUser', JSON.stringify(currentUser));
-                }
-
-                alert("로그인 성공!");
-                startSession();
-
-            } catch (error) {
-                alert("로그인 에러: " + error.message);
-            }
-        }
-
-        async function handleSignup() {
-            if (!auth) return alert("서버 연결 대기 중...");
-            const id = document.getElementById('reg-id').value;
-            const name = document.getElementById('reg-name').value;
-            const pw = document.getElementById('reg-pw').value;
-            const siteId = document.getElementById('reg-site').value;
-            const role = document.getElementById('reg-role').value;
-
-            if(!id || !name || !pw) return alert("모든 정보 입력 필요");
-
-            try {
-                if (!auth.currentUser) await auth.signInAnonymously();
-                const check = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').where('id', '==', id).get();
-                if(!check.empty) return alert("이미 사용 중인 ID");
-
-                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').add({
-                    id, name, pw, siteId, role, approved: false, createdAt: Date.now()
-                });
-                alert("신청 완료! 승인 대기.");
-                document.getElementById('tab-login').click();
-            } catch (e) { alert("오류: " + e.message); }
-        }
-
-        function startSession() {
-            document.getElementById('auth-screen').classList.add('hidden');
-            document.getElementById('main-dashboard').classList.remove('hidden');
-            document.getElementById('user-display').innerText = currentUser.name;
-
-            if(!map) {
-                map = L.map('map').setView([38.205, 127.115], 15);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-            }
-
-            if(navigator.geolocation) {
-                navigator.geolocation.watchPosition(
-                    (pos) => {
-                        const { latitude, longitude, accuracy } = pos.coords;
-                        document.getElementById('gps-status').innerText = "정상🟢";
-                        document.getElementById('gps-acc').innerText = Math.round(accuracy);
-                        updateMyPosition(latitude, longitude);
-                    },
-                    (err) => { document.getElementById('gps-status').innerText = "신호 약함🔴"; },
-                    { enableHighAccuracy: true }
-                );
-            }
-            subscribeWorkers();
-        }
-
-        async function updateMyPosition(lat, lng) {
-            if(!currentUser || !db) return;
-            await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('workers').doc(currentUser.id).set({
-                name: currentUser.name, role: currentUser.role, siteId: currentUser.siteId,
-                lat: lat, lng: lng, lastUpdate: Date.now(), isVisible: true
-            }, { merge: true });
-        }
-
-        function subscribeWorkers() {
-            if (!db) return;
-            let query = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('workers');
-            if(currentUser.siteId !== 'all') query = query.where('siteId', '==', currentUser.siteId);
-
-            query.onSnapshot((snapshot) => {
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    if(data.id === currentUser.id) return;
-                    if(markers[doc.id]) map.removeLayer(markers[doc.id]);
-                    const marker = L.circleMarker([data.lat, data.lng], {
-                        radius: 6, color: data.isSOS ? 'red' : 'blue'
-                    }).addTo(map).bindPopup(data.name);
-                    markers[doc.id] = marker;
-                });
-            });
-        }
-
-        function loadSites() {
-            if(!db) return;
-            db.collection('artifacts').doc(appId).collection('public').doc('data').collection('sites').onSnapshot(snap => {
-                const sel = document.getElementById('reg-site');
-                sel.innerHTML = '';
-                snap.forEach(doc => {
-                    sel.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`;
-                });
-                if(sel.innerHTML === '') sel.innerHTML = '<option value="default">기본 현장</option>';
-            });
-        }
-
-        window.logout = function() { localStorage.removeItem('savedUser'); location.reload(); };
-        window.triggerSOS = function() {
-            if(currentUser && db) {
-                db.collection('artifacts').doc(appId).collection('public').doc('data').collection('workers').doc(currentUser.id).set({ isSOS: true }, { merge: true });
-                alert("구조 요청 전송!");
+            } catch (e) {
+                log("🚨 치명적 에러 발생!");
+                log(e.message);
+                if(e.message.includes("network")) log("💡 인터넷 연결 상태를 확인하세요.");
             }
         };
     </script>
