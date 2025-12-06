@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v9.40 (Login Fixed)</title>
+    <title>스마트 안전 관제 v9.41 (SOS Fixed)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -21,16 +21,31 @@
         body { font-family: 'Noto Sans KR', sans-serif; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
         .map-container { height: 100vh; width: 100%; z-index: 10; }
         
-        /* 애니메이션 */
+        /* 마커 링 애니메이션 */
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
-        
         .sos-marker-ring { position: absolute; border-radius: 50%; border: 3px solid #ef4444; width: 100%; height: 100%; animation: pulse-red 1.5s infinite; }
         
+        /* SOS 전체 화면 점멸 애니메이션 (지도는 보이게 투명도 조절) */
+        @keyframes full-screen-alert {
+            0%, 100% { background-color: rgba(255, 0, 0, 0); }
+            50% { background-color: rgba(220, 38, 38, 0.25); }
+        }
+        .emergency-overlay {
+            animation: full-screen-alert 1.0s infinite;
+            position: fixed; inset: 0; z-index: 9000; pointer-events: none;
+            display: none; /* 기본 숨김 */
+            box-shadow: inset 0 0 50px rgba(255,0,0,0.5);
+            border: 4px solid rgba(255,0,0,0.6);
+        }
+        .emergency-overlay.active { display: block; }
+
+        /* SOS 버튼 */
         .sos-btn { position: absolute; bottom: 100px; right: 20px; z-index: 1000; width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; font-weight: bold; font-size: 12px; box-shadow: 0 4px 15px rgba(220, 38, 38, 0.5); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s; border: 3px solid white; }
         .sos-btn:active { transform: scale(0.95); }
         .sos-btn.active { animation: emergency-blink 1s infinite; background: #991b1b; }
         @keyframes emergency-blink { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.8; } }
         
+        /* 토스트 알림 */
         .toast { background: white; border-left: 6px solid #ef4444; padding: 16px; border-radius: 4px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); animation: slideIn 0.3s ease-out; display: flex; align-items: center; gap: 12px; min-width: 300px; margin-bottom: 10px; pointer-events: auto; }
         .toast.success { border-left-color: #22c55e; }
         .toast.warning { border-left-color: #f97316; }
@@ -79,6 +94,12 @@
         <source src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAACAGlzb21pc28yYXZjMQAAAAhmcmVlAAACQm1kYXQAAAGzABAHAAABthADAQAAAB5lbHN0AAAAAAAAAAEAAAABAAAAAAABAAAAAAABAAAAAAOBbW9vdgAAAGxtdmhkAAAAAAAAGNQAABjUAAABAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAh0cmFrAAAAXHRraGQAAAADAAAAGNQAABjUAAAAAQAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAIAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAABAAAAAAABAAAAAAABAAAAAAOibWRpYQAAACBtZGhkAAAAABjUAAAY1AAAAQAAAQAAAAABAFgAAAAAAAhWhGRscgAAAAAAAAAAbWluZgAAABR2bWhkAAAAAQAAAAAAAAAAAAAAJGRpbmYAAAAcZHJlZgAAAAAAAAABAAAADHVybCAAAAABAAADWnN0YmwAAAB5c3RzZAAAAAAAAAABAAAAiWF2YzEAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAQABAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGP//AAAALWF2Y0MBWQAa//8AAAAuZ2RrdRWbCAoBwQAAA+gA8F2D3awEBAQAAAAEAAAAAAQAAAAEAAAACHN0dHMAAAAAAAAAAQAAAAEAAAB4Y3R0cwAAAAAAAAAAAAABAAEAAAAcY3R0cwAAAAAAAAAAAAABAAEAAAAcc3RzYwAAAAAAAAABAAAAAQAAAAEAAAABAAAAFHN6LmEAAAAAAAAAAQAAAAQAAAA0c3RjbwAAAAAAAAABAAAAAAA=" type="video/mp4">
     </video>
 
+    <div id="emergency-overlay" class="emergency-overlay">
+        <div class="flex items-center justify-center h-full">
+            <h1 class="text-white text-4xl font-extrabold animate-pulse drop-shadow-lg hidden md:block">🚨 긴급 구조 요청 발생 🚨</h1>
+        </div>
+    </div>
+
     <div id="toast-container"></div>
 
     <div id="loading-screen" class="fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center">
@@ -97,7 +118,7 @@
             <div class="mb-6 flex flex-col items-center">
                 <img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon">
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">System Admin v9.40 (Login Fixed)</p>
+                <p class="text-sm text-gray-500">System Admin v9.41 (SOS Fixed)</p>
             </div>
             
             <div id="pwa-install-area" class="w-full mb-4 hidden">
@@ -229,10 +250,30 @@
             </div>
 
             <div id="panel-monitor" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scroll bg-gray-50 pb-20">
+                <div class="bg-white p-4 rounded shadow-sm border border-l-4 border-l-blue-500">
+                    <h3 class="font-bold text-gray-700 text-sm mb-2">📊 실시간 인원 현황</h3>
+                    <div class="grid grid-cols-4 gap-2 text-center">
+                        <div class="bg-blue-50 rounded p-1"><div class="text-[10px]">총원</div><div class="text-lg font-bold text-blue-800" id="stat-total">0</div></div>
+                        <div class="bg-green-50 rounded p-1"><div class="text-[10px]">작업중</div><div class="text-lg font-bold text-green-600" id="stat-active">0</div></div>
+                        <div class="bg-gray-100 rounded p-1"><div class="text-[10px]">이탈</div><div class="text-lg font-bold text-gray-600" id="stat-out">0</div></div>
+                        <div class="bg-red-50 rounded p-1 animate-pulse"><div class="text-[10px]">위험</div><div class="text-lg font-bold text-red-600" id="stat-danger">0</div></div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded shadow-sm border">
+                    <h3 class="font-bold text-gray-700 text-sm mb-2 flex justify-between items-center">
+                        <span>🚧 지정 구역 현황</span>
+                        <span class="text-[10px] text-gray-400">클릭 시 이동</span>
+                    </h3>
+                    <div id="zone-list" class="space-y-2 max-h-40 overflow-y-auto custom-scroll text-xs text-gray-500 text-center">
+                        <div class="p-2">등록된 구역이 없습니다.</div>
+                    </div>
+                </div>
+
                 <div class="bg-white p-3 rounded border shadow-sm">
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-sm font-bold text-gray-700 flex items-center">
-                            <i class="fa-solid fa-satellite-dish mr-2 text-blue-500"></i>GPS 자동 추적
+                            <i class="fa-solid fa-satellite-dish mr-2 text-blue-500"></i>GPS 설정
                         </span>
                         <div class="flex items-center gap-2">
                             <span id="gps-indicator" class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded font-bold animate-pulse">
@@ -245,20 +286,10 @@
                     </div>
                     <div class="border-t pt-2">
                         <div class="flex justify-between text-xs text-gray-600 mb-1">
-                            <span>내 높이 (층수 식별용)</span>
+                            <span>내 높이 보정</span>
                             <span id="current-alt-display" class="font-bold text-blue-600">0m</span>
                         </div>
                         <input type="range" id="alt-slider" min="-10" max="50" value="0" step="1" class="w-full">
-                    </div>
-                </div>
-
-                <div class="bg-white p-4 rounded shadow-sm border md:block hidden">
-                    <h3 class="font-bold text-gray-700 text-sm mb-2">실시간 현황</h3>
-                    <div class="grid grid-cols-4 gap-2 text-center">
-                        <div class="bg-blue-50 rounded p-1"><div class="text-[10px]">총원</div><div class="text-lg font-bold text-blue-800" id="stat-total">0</div></div>
-                        <div class="bg-green-50 rounded p-1"><div class="text-[10px]">작업중</div><div class="text-lg font-bold text-green-600" id="stat-active">0</div></div>
-                        <div class="bg-gray-100 rounded p-1"><div class="text-[10px]">이탈</div><div class="text-lg font-bold text-gray-600" id="stat-out">0</div></div>
-                        <div class="bg-red-50 rounded p-1 animate-pulse"><div class="text-[10px]">위험</div><div class="text-lg font-bold text-red-600" id="stat-danger">0</div></div>
                     </div>
                 </div>
 
@@ -306,11 +337,6 @@
                          <button onclick="finishDrawing()" class="w-full bg-green-600 text-white font-bold py-2 rounded text-sm">완료</button>
                          <button onclick="cancelDrawing()" class="w-full bg-gray-200 text-gray-600 font-bold py-2 rounded text-sm">취소</button>
                     </div>
-                </div>
-
-                <div class="bg-white p-4 rounded shadow-sm border">
-                    <h3 class="font-bold text-gray-700 text-sm mb-2">구역 목록</h3>
-                    <div id="zone-list" class="space-y-2 max-h-40 overflow-y-auto custom-scroll text-xs text-gray-500 text-center"></div>
                 </div>
             </div>
 
@@ -424,11 +450,7 @@
         const db = getFirestore(app);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         
-        // ▼▼▼ [위치 수정하는 곳] ▼▼▼
-        // 구글 지도 등에서 확인한 위도(lat), 경도(lng)를 아래에 입력하세요.
-        // 현재 설정: 서울 시청 (예시)
         const SITE_CENTER = { lat: 37.5665, lng: 126.9780 };
-        
         const MAX_DISTANCE_KM = 0.1; 
 
         let map, currentUser = null, currentSiteId = null;
@@ -438,18 +460,19 @@
         let gpsWatchId = null;
         let isWebMode = true; 
         let audioCtx;
+        
+        // SOS 알림 중복 방지용 Set
+        let alertedSOS = new Set();
 
         const getColRef = (name) => collection(db, 'artifacts', appId, 'public', 'data', name);
         
         const isManager = (role) => ['super_admin', 'admin', 'safety', 'health', 'supervisor'].includes(role);
         const isSiteAdmin = (role) => ['super_admin', 'admin', 'safety', 'health'].includes(role);
 
-        // [중요 수정] 로그인 전 미리 연결을 시도합니다.
         window.addEventListener('DOMContentLoaded', async () => {
              if(window.Capacitor) isWebMode = false;
              
              try {
-                // 앱 시작 시 익명 로그인을 먼저 수행하여 DB 접근 권한을 확보
                 await signInAnonymously(auth);
                 console.log("Firebase Connected");
              } catch(e) {
@@ -461,7 +484,6 @@
              const savedUser = localStorage.getItem('savedUser');
              if(savedUser) {
                  const u = JSON.parse(savedUser);
-                 // 연결 후 조회 시도
                  try {
                      const snap = await getDocs(query(getColRef('users'), where('id', '==', u.id)));
                      if(!snap.empty) {
@@ -583,6 +605,8 @@
                 const zoneList = document.getElementById('zone-list');
                 if(zoneList) zoneList.innerHTML = '';
 
+                if(snap.empty && zoneList) zoneList.innerHTML = '<div class="p-2 text-gray-400">등록된 구역이 없습니다.</div>';
+
                 snap.forEach(d => {
                     const z = { ...d.data(), id: d.id };
                     const pts = JSON.parse(z.points);
@@ -598,14 +622,14 @@
                     const poly = L.polygon(pts, { color, fillOpacity: 0.1 }).addTo(map);
                     poly.bindTooltip(z.name);
                     mapLayers.zones.push(poly);
-                    if(z.type === 'boundary') map.fitBounds(poly.getBounds());
-
+                    
+                    // 구역 목록 추가
                     if(zoneList) {
                         zoneList.innerHTML += `
-                            <div class="flex justify-between p-2 border-b text-sm">
+                            <div class="flex justify-between p-2 border-b text-sm items-center hover:bg-gray-50 transition cursor-pointer" onclick="map.fitBounds([${pts.map(p=>`[${p[0]},${p[1]}]`).join(',')}])">
                                 <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:${color}"></span> ${z.name}</span>
                                 ${(isManager(currentUser.role)) ? 
-                                    `<button onclick="deleteZone('${z.id}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button>` : ''}
+                                    `<button onclick="event.stopPropagation(); deleteZone('${z.id}')" class="text-red-500 hover:text-red-700 px-2"><i class="fa-solid fa-trash"></i></button>` : ''}
                             </div>
                         `;
                     }
@@ -620,19 +644,38 @@
                 mapLayers.users.forEach(l => map.removeLayer(l));
                 mapLayers.users = [];
                 activeWorkers = [];
+                
+                let isAnySOS = false;
 
                 snap.forEach(d => {
                     const w = d.data();
                     if(Date.now() - w.lastUpdate > 300000) return; 
                     activeWorkers.push(w);
 
+                    // [SOS 로직 추가]
+                    if (w.isSOS) {
+                        isAnySOS = true;
+                        if (!alertedSOS.has(w.id)) {
+                            // 우측 푸시 알림
+                            showToast(`🚨 긴급 구조 요청! - ${w.name} (${getRoleName(w.role)})`, 'danger');
+                            alertedSOS.add(w.id);
+                            playEmergencySound();
+                        }
+                    } else {
+                        alertedSOS.delete(w.id);
+                    }
+
                     if(!w.isVisible) return; 
 
                     let color = w.isSOS ? 'red' : 'blue';
                     const marker = L.circleMarker([w.lat, w.lng], { radius: 6, color }).addTo(map);
                     
-                    let popupContent = `<b>${w.name}</b> (${getRoleName(w.role)})`;
+                    if(w.isSOS) {
+                        const ring = L.divIcon({ className: 'sos-marker-ring', iconSize: [40,40], iconAnchor: [20,20] });
+                        L.marker([w.lat, w.lng], { icon: ring }).addTo(map);
+                    }
                     
+                    let popupContent = `<b>${w.name}</b> (${getRoleName(w.role)})`;
                     if (isSiteAdmin(currentUser.role)) {
                          popupContent += `<div class="text-xs mt-1 border-t pt-1">
                             ${w.personalInfo || ''}<br>
@@ -641,13 +684,29 @@
                           </div>`;
                     }
                     
-                    if (w.isSOS && isManager(currentUser.role)) {
-                        popupContent += `<button onclick="resolveSOS('${w.id}', '${w.name}')" class="mt-1 w-full bg-red-100 text-red-600 text-[10px] px-1 border rounded font-bold">SOS 해제</button>`;
+                    // SOS 해제 버튼 (팝업 내)
+                    if (w.isSOS) {
+                        popupContent += `<button onclick="resolveSOS('${w.id}', '${w.name}')" class="mt-1 w-full bg-red-600 text-white text-xs py-1 rounded font-bold animate-pulse hover:bg-red-700">🚨 구조 완료 / SOS 해제</button>`;
                     }
 
                     marker.bindPopup(popupContent);
                     mapLayers.users.push(marker);
                 });
+                
+                // [SOS 전체 화면 점멸 처리]
+                // 관리자: 누군가 SOS면 점멸
+                // 근로자: 본인이 SOS면 점멸
+                const overlay = document.getElementById('emergency-overlay');
+                const isMySOS = activeWorkers.find(w => w.id === currentUser.id && w.isSOS);
+                
+                if (isManager(currentUser.role)) {
+                    if (isAnySOS) overlay.classList.add('active');
+                    else overlay.classList.remove('active');
+                } else {
+                    if (isMySOS) overlay.classList.add('active');
+                    else overlay.classList.remove('active');
+                }
+
                 updateStats();
             });
 
@@ -749,11 +808,20 @@
             document.getElementById('tool-default').classList.remove('hidden');
             document.getElementById('tool-drawing').classList.add('hidden');
         };
+        window.deleteZone = async (zid) => {
+            if(confirm("이 구역을 삭제하시겠습니까?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'zones', zid));
+        }
         
+        // [SOS 해제 로직 수정] 권한 체크 강화
         window.resolveSOS = async (targetId, targetName) => {
-            if(!isManager(currentUser.role)) return alert("권한 부족");
-            if(confirm(targetName + "님의 SOS를 해제합니까?")) {
+            const isMine = currentUser.id === targetId;
+            const canResolve = ['super_admin', 'admin', 'supervisor'].includes(currentUser.role) || isMine;
+
+            if(!canResolve) return alert("SOS 해제 권한이 없습니다.\n(본인 또는 관리자만 가능)");
+
+            if(confirm(`${targetName}님의 구조 요청을 해제하시겠습니까?`)) {
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'workers', targetId), { isSOS: false });
+                alert("해제되었습니다.");
             }
         };
         
@@ -782,8 +850,7 @@
         window.refreshGPS = () => { if(gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId); startGPS(); };
         window.triggerSOS = async () => { 
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'workers', currentUser.id), { isSOS: true }); 
-            alert("구조 요청 전송됨"); 
-            playEmergencySound();
+            // alert("구조 요청 전송됨"); // 토스트로 대체
         };
         window.createNewSite = async () => { 
             const name = document.getElementById('new-site-name').value; 
