@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v9.7 (Admin Tools & Draw UX)</title>
+    <title>스마트 안전 관제 v9.8 (SOS Full-Screen & Draw Fix)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -21,7 +21,15 @@
         body { font-family: 'Noto Sans KR', sans-serif; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
         .map-container { height: 100vh; width: 100%; z-index: 10; }
         
-        /* 애니메이션 정의 */
+        /* SOS 전체 화면 점멸 애니메이션 */
+        #sos-overlay { pointer-events: none; z-index: 9998; mix-blend-mode: multiply; }
+        .sos-active-bg { animation: sos-flash-bg 1s infinite alternate; background-color: rgba(255, 0, 0, 0.4); display: block !important; }
+        @keyframes sos-flash-bg { 
+            0% { background-color: rgba(255, 0, 0, 0.1); } 
+            100% { background-color: rgba(255, 0, 0, 0.5); } 
+        }
+
+        /* 마커 링 애니메이션 */
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
         @keyframes pulse-purple { 0% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(147, 51, 234, 0); } 100% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0); } }
         
@@ -30,12 +38,13 @@
         
         .sos-btn { position: absolute; bottom: 100px; right: 20px; z-index: 1000; width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; font-weight: bold; font-size: 12px; box-shadow: 0 4px 15px rgba(220, 38, 38, 0.5); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s; border: 3px solid white; }
         .sos-btn:active { transform: scale(0.95); }
-        .sos-btn.active { animation: emergency-blink 1s infinite; background: #991b1b; }
-        @keyframes emergency-blink { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.8; } }
+        .sos-btn.active { animation: emergency-blink 0.5s infinite; background: #991b1b; border-color: #fbbf24; }
+        @keyframes emergency-blink { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.8; } }
         
         .toast { background: white; border-left: 6px solid #ef4444; padding: 16px; border-radius: 4px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); animation: slideIn 0.3s ease-out; display: flex; align-items: center; gap: 12px; min-width: 300px; margin-bottom: 10px; pointer-events: auto; }
         .toast.success { border-left-color: #22c55e; }
         .toast.warning { border-left-color: #f97316; }
+        .toast.danger { border-left-color: #ef4444; background-color: #fef2f2; }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; align-items: flex-end; }
         
@@ -79,6 +88,8 @@
 </head>
 <body class="bg-gray-100 overflow-hidden h-screen w-screen">
 
+    <div id="sos-overlay" class="fixed inset-0 hidden"></div>
+
     <video id="no-sleep-video" playsinline muted loop>
         <source src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAACAGlzb21pc28yYXZjMQAAAAhmcmVlAAACQm1kYXQAAAGzABAHAAABthADAQAAAB5lbHN0AAAAAAAAAAEAAAABAAAAAAABAAAAAAABAAAAAAOBbW9vdgAAAGxtdmhkAAAAAAAAGNQAABjUAAABAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAh0cmFrAAAAXHRraGQAAAADAAAAGNQAABjUAAAAAQAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAIAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAABAAAAAAABAAAAAAOibWRpYQAAACBtZGhkAAAAABjUAAAY1AAAAQAAAQAAAAABAFgAAAAAAAhWhGRscgAAAAAAAAAAbWluZgAAABR2bWhkAAAAAQAAAAAAAAAAAAAAJGRpbmYAAAAcZHJlZgAAAAAAAAABAAAADHVybCAAAAABAAADWnN0YmwAAAB5c3RzZAAAAAAAAAABAAAAiWF2YzEAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAQABAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGP//AAAALWF2Y0MBWQAa//8AAAAuZ2RrdRWbCAoBwQAAA+gA8F2D3awEBAQAAAAEAAAAAAQAAAAEAAAACHN0dHMAAAAAAAAAAQAAAAEAAAB4Y3R0cwAAAAAAAAAAAAABAAEAAAAcY3R0cwAAAAAAAAAAAAABAAEAAAAcc3RzYwAAAAAAAAABAAAAAQAAAAEAAAABAAAAFHN6LmEAAAAAAAAAAQAAAAQAAAA0c3RjbwAAAAAAAAABAAAAAAA=" type="video/mp4">
     </video>
@@ -95,7 +106,7 @@
             <div class="mb-6 flex flex-col items-center">
                 <img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon">
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">System Admin v9.7</p>
+                <p class="text-sm text-gray-500">System Admin v9.8</p>
             </div>
             
             <div class="flex border-b mb-4 w-full">
@@ -394,6 +405,9 @@
         let editingZoneId = null;
         let siteMap = {};
 
+        // SOS Interval Var
+        let sosInterval = null;
+
         const getColRef = (name) => collection(db, 'artifacts', appId, 'public', 'data', name);
         const isManager = (role) => ['super_admin', 'admin', 'safety', 'health', 'supervisor'].includes(role);
         const isSiteAdmin = (role) => ['super_admin', 'admin', 'safety', 'health'].includes(role); 
@@ -569,6 +583,12 @@
                     }
 
                     const poly = L.polygon(z.points, { color, fillColor: color, fillOpacity, weight: 2, dashArray }).addTo(map);
+                    
+                    // [Fix] Site Boundary Breakage: Move boundary to back so new zones draw ON TOP
+                    if(z.type === 'boundary') {
+                        poly.bringToBack();
+                    }
+
                     poly.bindTooltip(z.name);
                     
                     if(canCreateZone(currentUser.role)) {
@@ -672,16 +692,60 @@
             if(!currentUser) return;
             const btn = document.getElementById('btn-sos');
             const isSOSNow = btn.classList.contains('active');
-            if(!isSOSNow) { btn.classList.add('active'); showToast("🆘 구조 요청(SOS)을 전송합니다!", "danger"); } 
-            else { btn.classList.remove('active'); showToast("SOS 상황을 해제합니다.", "info"); }
+            
+            // Toggle Logic
+            if(!isSOSNow) { 
+                btn.classList.add('active'); 
+                // Visual feedback immediate
+                showToast("🆘 구조 요청(SOS)을 전송합니다!", "danger");
+            } else { 
+                btn.classList.remove('active'); 
+                showToast("SOS 상황을 해제합니다.", "info");
+            }
             await updateDoc(doc(getColRef('workers'), currentUser.id), { isSOS: !isSOSNow });
         };
+
+        // [Enhanced] SOS Check with Interval & Full Screen Flash
         function checkSOS() {
             const sosWorkers = activeWorkers.filter(w => w.isSOS);
+            const overlay = document.getElementById('sos-overlay');
+            const btn = document.getElementById('btn-sos');
+
+            // Logic to sync button state if triggered by another device for same user
+            const myStatus = sosWorkers.find(w => w.id === currentUser.id);
+            if(myStatus && !btn.classList.contains('active')) btn.classList.add('active');
+            if(!myStatus && btn.classList.contains('active')) btn.classList.remove('active');
+
             if(sosWorkers.length > 0) {
-                const others = sosWorkers.filter(w => w.id !== currentUser.id);
-                if(others.length > 0) showToast(`🚨 ${others.map(u=>u.name).join(', ')} 님이 구조 요청 중입니다!`, "danger");
+                // Activate Alarm Mode
+                if(overlay.classList.contains('hidden')) {
+                    overlay.classList.remove('hidden');
+                    overlay.classList.add('sos-active-bg');
+                }
+
+                // Start 10s Interval if not running
+                if(!sosInterval) {
+                    triggerSOSAlarm(sosWorkers); // Immediate
+                    sosInterval = setInterval(() => triggerSOSAlarm(sosWorkers), 10000);
+                }
+            } else {
+                // Deactivate Alarm Mode
+                overlay.classList.add('hidden');
+                overlay.classList.remove('sos-active-bg');
+                if(sosInterval) {
+                    clearInterval(sosInterval);
+                    sosInterval = null;
+                }
             }
+        }
+
+        function triggerSOSAlarm(workers) {
+            // Vibrate (Mobile)
+            if(navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 1000]);
+            
+            // Toast / Sound logic here
+            const names = workers.map(u => u.name).join(', ');
+            showToast(`🚨 긴급! ${names} 님이 구조 요청 중!`, "danger");
         }
 
         // --- Site Mgmt ---
@@ -708,15 +772,12 @@
              document.getElementById('createSiteModal').classList.add('hidden');
         };
         
-        // [New] Updated Delete Site Logic with Main UI Button
         window.deleteCurrentSite = async () => {
              if(currentUser.role !== 'super_admin') return alert("권한이 없습니다.");
              if(currentSiteId === 'all') return alert("삭제할 특정 현장을 목록에서 먼저 선택해주세요.");
-             
              if(confirm(`[경고] 정말 '${siteMap[currentSiteId]}' 현장을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며 모든 데이터가 삭제됩니다.`)) {
                  await deleteDoc(doc(getColRef('sites'), currentSiteId));
                  alert("현장이 영구 삭제되었습니다.");
-                 // Reset to all
                  document.getElementById('super-admin-site-select').value = 'all';
                  currentSiteId = 'all'; 
                  subscribeData();
@@ -727,12 +788,18 @@
         window.startDrawing = () => { 
             if(!canCreateZone(currentUser.role)) return alert("권한이 없습니다.");
             if(currentSiteId === 'all') return alert("전체 관제 모드에서는 구역 생성이 불가능합니다. 특정 현장을 선택하세요.");
-            isDrawing = true; drawingPoints = []; 
+            
+            // [Fix] Clear previous drawing points absolutely
+            isDrawing = true; 
+            drawingPoints = []; 
+            mapLayers.temp.forEach(l => map.removeLayer(l)); 
+            mapLayers.temp = []; 
+            if(mapLayers.tempLine) { map.removeLayer(mapLayers.tempLine); mapLayers.tempLine = null; }
+
             document.getElementById('tool-default').classList.add('hidden'); 
             document.getElementById('tool-drawing').classList.remove('hidden'); 
             
-            // [New] Temp Polyline for visual connection
-            if(mapLayers.tempLine) map.removeLayer(mapLayers.tempLine);
+            // Init Visual Line
             mapLayers.tempLine = L.polyline([], {color: '#ef4444', dashArray: '5, 10', weight: 2}).addTo(map);
         };
         
@@ -746,10 +813,8 @@
         
         window.addDrawingPoint = (latlng) => { 
             drawingPoints.push([latlng.lat, latlng.lng]); 
-            // Marker
             const m = L.circleMarker(latlng, {radius:4, color: 'red'}).addTo(map); 
             mapLayers.temp.push(m); 
-            // Update Line
             if(mapLayers.tempLine) mapLayers.tempLine.setLatLngs(drawingPoints);
         };
         
@@ -759,7 +824,6 @@
             document.getElementById('zone-modal-title').innerText = "새 구역 저장";
             document.getElementById('zone-name').value = "";
             
-            // Auto Select Site Boundary if first zone
             const hasZones = zones.length > 0;
             const typeSelect = document.getElementById('zone-type');
             const infoText = document.getElementById('zone-type-info');
@@ -771,11 +835,10 @@
                 typeSelect.value = 'normal';
                 infoText.classList.add('hidden');
             }
-            window.handleZoneTypeChange(); // Trigger visual update
+            window.handleZoneTypeChange(); // Visual update
             document.getElementById('zoneModal').classList.remove('hidden'); 
         };
 
-        // [New] Handle Height Visibility
         window.handleZoneTypeChange = () => {
             const type = document.getElementById('zone-type').value;
             const heightArea = document.getElementById('height-config-area');
@@ -784,9 +847,9 @@
         }
 
         window.openZoneEdit = (z) => {
-            if(!canCreateZone(currentUser.role)) return; // Double check
+            if(!canCreateZone(currentUser.role)) return; 
             editingZoneId = z.id;
-            drawingPoints = z.points; // Keep existing points
+            drawingPoints = z.points; 
             document.getElementById('zone-modal-title').innerText = "구역 정보 수정";
             document.getElementById('zone-name').value = z.name;
             document.getElementById('zone-type').value = z.type || 'normal';
