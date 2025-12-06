@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v9.50 (Final)</title>
+    <title>스마트 안전 관제 v9.51 (Final Fix)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -57,7 +57,8 @@
     <script>
         // Global Error Handler
         window.onerror = function(msg, url, line, col, error) {
-            alert("오류 발생: " + msg);
+            // alert("오류 발생: " + msg); // 너무 잦은 알림 방지
+            console.error(msg);
             return false;
         };
 
@@ -96,7 +97,7 @@
             <div class="mb-6 flex flex-col items-center">
                 <img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon">
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">System Admin v9.50</p>
+                <p class="text-sm text-gray-500">System Admin v9.51</p>
             </div>
             
             <div id="pwa-install-area" class="w-full mb-4 hidden">
@@ -300,6 +301,68 @@
     <div id="passwordModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2200] hidden flex items-center justify-center p-4"><div class="bg-white rounded-lg p-6 w-full max-w-sm"><h3 class="text-lg font-bold mb-4" id="pw-modal-title">비밀번호 변경</h3><input type="hidden" id="pw-target-user-id"><div class="mb-4"><input type="password" id="new-password" class="w-full border p-2 rounded" placeholder="새 비밀번호"></div><div class="flex gap-2"><button onclick="saveNewPassword()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">변경</button><button onclick="document.getElementById('passwordModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">취소</button></div></div></div>
     <div id="zoneModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2000] hidden flex items-center justify-center p-4"><div class="bg-white rounded-lg p-6 w-full max-w-sm"><h3 class="text-lg font-bold mb-4" id="zone-modal-title">구역 저장</h3><input type="hidden" id="editing-zone-id"><input type="text" id="zone-name" placeholder="구역 이름" class="w-full border p-2 rounded mb-3"><div class="flex items-center gap-2 mb-3 bg-red-50 p-2 rounded"><input type="checkbox" id="zone-is-confined" class="w-4 h-4 text-red-600 rounded"><label for="zone-is-confined" class="text-sm font-bold text-red-700">위험 구역 (알림)</label></div><div id="time-limit-box" class="hidden mb-3 ml-2"><label class="text-xs text-gray-600">제한 시간(초): </label><input type="number" id="zone-time-limit" value="10" class="border w-16 text-center rounded p-1"></div><div class="flex gap-2"><button onclick="saveZone()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">저장</button><button onclick="document.getElementById('zoneModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">취소</button></div></div></div>
 
+    <script>
+        // 이 부분은 페이지가 뜨자마자 무조건 실행됩니다.
+        document.addEventListener('DOMContentLoaded', () => {
+             // 탭 전환
+             const tabLogin = document.getElementById('tab-login');
+             if(tabLogin) tabLogin.onclick = () => {
+                 document.getElementById('form-login').classList.remove('hidden');
+                 document.getElementById('form-signup').classList.add('hidden');
+                 document.getElementById('tab-login').classList.add('border-blue-600', 'text-blue-600');
+                 document.getElementById('tab-signup').classList.remove('border-blue-600', 'text-blue-600');
+             };
+
+             const tabSignup = document.getElementById('tab-signup');
+             if(tabSignup) tabSignup.onclick = () => {
+                 document.getElementById('form-login').classList.add('hidden');
+                 document.getElementById('form-signup').classList.remove('hidden');
+                 document.getElementById('tab-signup').classList.add('border-blue-600', 'text-blue-600');
+                 document.getElementById('tab-login').classList.remove('border-blue-600', 'text-blue-600');
+             };
+
+             // 비밀번호 보이기/숨기기
+             const toggleBtn = document.getElementById('toggle-pw-visibility');
+             const pwInput = document.getElementById('login-pw');
+             if(toggleBtn && pwInput) {
+                toggleBtn.onclick = () => {
+                    const type = pwInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    pwInput.setAttribute('type', type);
+                    toggleBtn.innerHTML = type === 'password' ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>';
+                };
+             }
+
+             // 로그인 버튼 연결 (안전을 위해 여기서도 한 번 더 시도)
+             const btnLogin = document.getElementById('btn-login');
+             if(btnLogin) {
+                btnLogin.onclick = () => {
+                    if(typeof window.handleLogin === 'function') {
+                        window.handleLogin();
+                    } else {
+                        alert("시스템 로딩 중입니다. 잠시 후 다시 시도해주세요.");
+                    }
+                };
+             }
+
+             const btnSignup = document.getElementById('btn-signup');
+             if(btnSignup) {
+                btnSignup.onclick = () => {
+                    if(typeof window.handleSignup === 'function') {
+                        window.handleSignup();
+                    } else {
+                        alert("시스템 로딩 중입니다.");
+                    }
+                };
+             }
+             
+             // 로딩 화면 끄기
+             setTimeout(() => {
+                 document.getElementById('loading-screen').classList.add('hidden');
+                 document.getElementById('auth-screen').classList.remove('hidden');
+             }, 1000);
+        });
+    </script>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -341,15 +404,14 @@
             if(el) el.innerText = text;
         };
 
+        // Window 전역 객체에 할당 (UI 스크립트에서 부를 수 있게)
         window.handleLogin = async () => {
-            alert("로그인 버튼 클릭됨! 서버에 연결 시도 중..."); // 디버그용 알림 추가
             const id = document.getElementById('login-id').value;
             const pw = document.getElementById('login-pw').value;
             
             try {
                 if (!auth.currentUser) await signInAnonymously(auth);
 
-                // 최고 관리자 계정 생성 (없으면)
                 if(id === 'dark584' && pw === 'Rufghs0423!!') {
                     const q = query(getColRef('users'), where('id', '==', 'dark584'));
                     const s = await getDocs(q);
@@ -376,7 +438,6 @@
                     localStorage.setItem('savedUser', JSON.stringify(u));
                 }
 
-                alert("로그인 성공! 대시보드로 이동합니다."); // 성공 알림 추가
                 startSession();
 
             } catch (error) {
@@ -595,7 +656,8 @@
             } catch(e) { console.log("Site load deferred"); }
         }
 
-        // --- SAFE INITIALIZATION (FIXED WITH PASSWORD TOGGLE & DEBUG) ---
+        // --- SAFE INITIALIZATION ---
+        // UI 로직과 Firebase 로직을 분리했으므로 여기서는 자동 로그인만 체크합니다.
         window.addEventListener('DOMContentLoaded', async () => {
              if(window.Capacitor) isWebMode = false;
              
@@ -604,47 +666,8 @@
              if(savedUser) {
                  try { currentUser = JSON.parse(savedUser); } catch(e) {}
              }
-             
-             // Initialize UI Buttons Safely
-             const btnLogin = document.getElementById('btn-login');
-             if(btnLogin) btnLogin.onclick = window.handleLogin;
-             
-             const btnSignup = document.getElementById('btn-signup');
-             if(btnSignup) btnSignup.onclick = window.handleSignup;
-
-             // [FIX] Password Toggle Logic Added Here
-             const toggleBtn = document.getElementById('toggle-pw-visibility');
-             const pwInput = document.getElementById('login-pw');
-             if(toggleBtn && pwInput) {
-                toggleBtn.onclick = () => {
-                    const type = pwInput.getAttribute('type') === 'password' ? 'text' : 'password';
-                    pwInput.setAttribute('type', type);
-                    toggleBtn.innerHTML = type === 'password' ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>';
-                };
-             }
-             
-             const tabLogin = document.getElementById('tab-login');
-             if(tabLogin) tabLogin.onclick = () => {
-                 document.getElementById('form-login').classList.remove('hidden');
-                 document.getElementById('form-signup').classList.add('hidden');
-                 document.getElementById('tab-login').classList.add('border-blue-600', 'text-blue-600');
-                 document.getElementById('tab-signup').classList.remove('border-blue-600', 'text-blue-600');
-             };
-
-             const tabSignup = document.getElementById('tab-signup');
-             if(tabSignup) tabSignup.onclick = () => {
-                 document.getElementById('form-login').classList.add('hidden');
-                 document.getElementById('form-signup').classList.remove('hidden');
-                 document.getElementById('tab-signup').classList.add('border-blue-600', 'text-blue-600');
-                 document.getElementById('tab-login').classList.remove('border-blue-600', 'text-blue-600');
-             };
-
              // Load Sites
              loadSitesToSelect('reg-site');
-             
-             // Hide Loading Screen
-             document.getElementById('loading-screen').classList.add('hidden');
-             document.getElementById('auth-screen').classList.remove('hidden');
         });
 
         // Global Window Functions
