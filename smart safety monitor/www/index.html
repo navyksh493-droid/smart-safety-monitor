@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v9.31 (Integrated)</title>
+    <title>스마트 안전 관제 v9.32 (Danger Zone & SOS Fix)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -21,35 +21,29 @@
         body { font-family: 'Noto Sans KR', sans-serif; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
         .map-container { height: 100vh; width: 100%; z-index: 10; }
         
-        /* 마커 링 애니메이션 */
+        /* 애니메이션 */
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
         @keyframes pulse-purple { 0% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(147, 51, 234, 0); } 100% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0); } }
-        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
         
-        .sos-marker-ring { position: absolute; border-radius: 50%; border: 3px solid #ef4444; width: 100%; height: 100%; animation: pulse-red 1.5s infinite; }
-        .danger-zone-ring { position: absolute; border-radius: 50%; border: 2px solid #9333ea; width: 100%; height: 100%; animation: pulse-purple 2s infinite; }
-        .high-risk-marker-ring { position: absolute; border-radius: 50%; border: 2px solid #22c55e; width: 100%; height: 100%; animation: pulse-green 2s infinite; }
+        /* 마커 스타일 */
+        .sos-marker-ring { position: absolute; border-radius: 50%; border: 3px solid #ef4444; width: 100%; height: 100%; animation: pulse-red 1.0s infinite; }
+        .danger-zone-ring { position: absolute; border-radius: 50%; border: 3px solid #9333ea; width: 100%; height: 100%; animation: pulse-purple 1.5s infinite; }
         
+        /* SOS 버튼 */
         .sos-btn { position: absolute; bottom: 100px; right: 20px; z-index: 1000; width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; font-weight: bold; font-size: 12px; box-shadow: 0 4px 15px rgba(220, 38, 38, 0.5); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s; border: 3px solid white; }
         .sos-btn:active { transform: scale(0.95); }
-        .sos-btn.active { animation: emergency-blink 1s infinite; background: #991b1b; }
-        @keyframes emergency-blink { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.8; } }
+        .sos-btn.active { animation: emergency-blink 0.5s infinite; background: #991b1b; }
+        @keyframes emergency-blink { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } }
         
         .toast { background: white; border-left: 6px solid #ef4444; padding: 16px; border-radius: 4px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); animation: slideIn 0.3s ease-out; display: flex; align-items: center; gap: 12px; min-width: 300px; margin-bottom: 10px; pointer-events: auto; }
         .toast.success { border-left-color: #22c55e; }
         .toast.warning { border-left-color: #f97316; }
-        .toast.info { border-left-color: #3b82f6; }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; align-items: flex-end; }
         
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
 
-        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #2563eb; cursor: pointer; margin-top: -6px; }
-        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #bfdbfe; border-radius: 2px; }
-
-        /* [Integrated] Mobile Stats Bar Style */
         .mobile-stats-bar {
             position: fixed; bottom: 0; left: 0; width: 100%;
             background: white; border-top: 1px solid #e2e8f0;
@@ -62,13 +56,11 @@
         .stat-label { font-size: 10px; color: #64748b; display: block; }
         .stat-value { font-size: 14px; font-weight: 800; color: #1e293b; }
         
-        /* Hidden Video for NoSleep (Web Mode) */
         #no-sleep-video { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
     </style>
 
     <script>
         const isCapacitor = () => window.Capacitor !== undefined;
-
         function generateAppIcon() {
             const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512; const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#1e3a8a'; ctx.beginPath(); ctx.moveTo(256, 0); ctx.quadraticCurveTo(512, 0, 512, 128); ctx.lineTo(512, 256); ctx.bezierCurveTo(512, 400, 384, 512, 256, 512); ctx.bezierCurveTo(128, 512, 0, 400, 0, 256); ctx.lineTo(0, 128); ctx.quadraticCurveTo(0, 0, 256, 0); ctx.fill();
@@ -98,23 +90,17 @@
     </div>
 
     <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-90 hidden">
-        <div class="absolute top-4 right-4">
-            <button onclick="showInstallGuide()" class="text-white text-xs border border-white px-3 py-1 rounded hover:bg-white hover:text-gray-900 transition flex items-center gap-2">
-                <i class="fa-solid fa-download"></i> 설치 방법
-            </button>
-        </div>
         <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md m-4 flex flex-col items-center max-h-[90vh] overflow-y-auto custom-scroll relative">
             <div class="mb-6 flex flex-col items-center">
                 <img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon">
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">System Admin v9.31 (Integrated)</p>
+                <p class="text-sm text-gray-500">System Admin v9.32 (Danger Zone)</p>
             </div>
             
             <div id="pwa-install-area" class="w-full mb-4 hidden">
                 <button id="btn-pwa-install" class="w-full bg-blue-100 text-blue-800 py-3 rounded-lg font-bold border border-blue-300 flex items-center justify-center gap-2 animate-pulse">
-                    <i class="fa-solid fa-download"></i> 앱 지금 설치하기 (스토어 X)
+                    <i class="fa-solid fa-download"></i> 앱 지금 설치하기
                 </button>
-                <p class="text-[10px] text-center text-blue-500 mt-1">터치 한 번으로 홈 화면에 추가됩니다.</p>
             </div>
 
             <div class="flex border-b mb-4 w-full">
@@ -130,12 +116,10 @@
                         <i class="fa-solid fa-eye"></i>
                     </button>
                 </div>
-                
                 <div class="flex items-center gap-2">
                     <input type="checkbox" id="auto-login-check" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300">
                     <label for="auto-login-check" class="text-sm text-gray-600">자동 로그인</label>
                 </div>
-
                 <button id="btn-login" class="w-full bg-blue-800 text-white py-3 rounded font-bold hover:bg-blue-900 transition shadow-lg">로그인 (GPS 자동 실행)</button>
             </div>
 
@@ -143,13 +127,10 @@
                 <input type="text" id="reg-id" placeholder="아이디" class="w-full border p-3 rounded">
                 <input type="text" id="reg-name" placeholder="이름 (실명)" class="w-full border p-3 rounded">
                 <input type="password" id="reg-pw" placeholder="비밀번호" class="w-full border p-3 rounded">
-                
                 <div class="border p-3 rounded bg-gray-50">
                     <label class="text-xs font-bold text-gray-500 block mb-1">소속 현장 선택</label>
-                    <select id="reg-site" class="w-full border p-2 rounded bg-white">
-                        </select>
+                    <select id="reg-site" class="w-full border p-2 rounded bg-white"></select>
                 </div>
-
                 <select id="reg-role" class="w-full border p-3 rounded bg-white">
                     <option value="worker">근로자</option>
                     <option value="guard">경비</option>
@@ -160,39 +141,6 @@
                 </select>
                 <button id="btn-signup" class="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700 transition">가입 신청</button>
             </div>
-        </div>
-        <div class="absolute bottom-4 right-4 text-xs text-gray-400 font-bold shadow-sm pointer-events-none">
-            제작자 -백곰-
-        </div>
-    </div>
-
-    <div id="install-guide-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-80 hidden" onclick="this.classList.add('hidden')">
-        <div class="bg-white p-6 rounded-lg w-full max-w-sm m-4 text-center overflow-y-auto max-h-[90vh]" onclick="event.stopPropagation()">
-            <h3 class="text-xl font-bold mb-4 text-blue-900 flex items-center justify-center gap-2">
-                <i class="fa-solid fa-mobile-screen-button"></i> 간편 설치 방법
-            </h3>
-            <div class="text-left space-y-4 mb-6">
-                <div class="bg-gray-50 p-4 rounded border border-gray-200">
-                    <strong class="text-green-600 flex items-center gap-2 mb-2"><i class="fa-brands fa-android text-xl"></i> 안드로이드 (삼성/LG)</strong>
-                    <ol class="list-decimal pl-5 text-sm text-gray-700 space-y-1 mb-3">
-                        <li>메뉴 <span class="font-bold text-black text-lg">⋮</span> 터치</li>
-                        <li><span class="font-bold bg-blue-100 px-1 rounded text-blue-800">'앱 설치'</span> 또는 '홈 화면에 추가' 선택</li>
-                    </ol>
-                    <button id="btn-install-guide-android" class="w-full bg-green-600 text-white py-3 rounded font-bold shadow hover:bg-green-700 transition flex items-center justify-center gap-2 text-sm mt-2">
-                        <i class="fa-solid fa-download"></i> 앱 설치 실행 (클릭)
-                    </button>
-                </div>
-                <div class="bg-gray-50 p-4 rounded border border-gray-200">
-                    <strong class="text-gray-800 flex items-center gap-2 mb-2"><i class="fa-brands fa-apple text-xl"></i> 아이폰 (Safari)</strong>
-                    <ol class="list-decimal pl-5 text-sm text-gray-700 space-y-1">
-                        <li>하단 <span class="font-bold text-blue-600"><i class="fa-solid fa-arrow-up-from-bracket"></i> 공유 버튼</span> 터치</li>
-                        <li>'홈 화면에 추가' 선택</li>
-                    </ol>
-                </div>
-            </div>
-            <button onclick="document.getElementById('install-guide-modal').classList.add('hidden')" class="bg-blue-800 text-white px-4 py-3 rounded-lg w-full font-bold shadow-lg hover:bg-blue-900 transition">
-                확인했습니다
-            </button>
         </div>
     </div>
 
@@ -248,20 +196,10 @@
                     </div>
                     <div class="border-t pt-2">
                         <div class="flex justify-between text-xs text-gray-600 mb-1">
-                            <span>내 높이 (층수 식별용)</span>
+                            <span>내 높이 보정</span>
                             <span id="current-alt-display" class="font-bold text-blue-600">0m</span>
                         </div>
                         <input type="range" id="alt-slider" min="-10" max="50" value="0" step="1" class="w-full">
-                    </div>
-                </div>
-
-                <div class="bg-white p-4 rounded shadow-sm border md:block hidden">
-                    <h3 class="font-bold text-gray-700 text-sm mb-2">실시간 현황</h3>
-                    <div class="grid grid-cols-4 gap-2 text-center">
-                        <div class="bg-blue-50 rounded p-1"><div class="text-[10px]">총원</div><div class="text-lg font-bold text-blue-800" id="stat-total">0</div></div>
-                        <div class="bg-green-50 rounded p-1"><div class="text-[10px]">작업중</div><div class="text-lg font-bold text-green-600" id="stat-active">0</div></div>
-                        <div class="bg-gray-100 rounded p-1"><div class="text-[10px]">이탈</div><div class="text-lg font-bold text-gray-600" id="stat-out">0</div></div>
-                        <div class="bg-red-50 rounded p-1 animate-pulse"><div class="text-[10px]">위험</div><div class="text-lg font-bold text-red-600" id="stat-danger">0</div></div>
                     </div>
                 </div>
 
@@ -271,36 +209,55 @@
                 </div>
 
                 <div id="admin-tools" class="hidden bg-white p-4 rounded shadow-sm border border-blue-100">
-                    <h3 class="font-bold text-blue-800 text-sm mb-2 flex justify-between">
-                        관리자 도구
-                        <span class="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded" id="current-site-badge"></span>
-                    </h3>
+                    <h3 class="font-bold text-blue-800 text-sm mb-2">관리자 도구</h3>
                     
-                    <button id="btn-manage-sites" onclick="openCreateSiteModal()" class="w-full bg-gray-700 text-white font-bold py-2 rounded text-sm hover:bg-gray-800 mb-2 hidden">
-                        <i class="fa-solid fa-building-flag"></i> 현장 생성 및 관리
-                    </button>
+                    <div id="super-admin-controls" class="hidden mb-3 p-2 bg-slate-100 rounded border">
+                        <label class="text-xs font-bold text-slate-600 block mb-1">📢 모니터링 현장 선택</label>
+                        <select id="site-selector" class="w-full text-xs p-1 border rounded bg-white" onchange="switchSite(this.value)"></select>
+                        <button onclick="openCreateSiteModal()" class="w-full bg-slate-600 text-white font-bold py-1 rounded text-xs mt-2 hover:bg-slate-700">
+                            <i class="fa-solid fa-plus"></i> 새 현장 생성
+                        </button>
+                    </div>
 
                     <div id="tool-default" class="space-y-2">
-                        <button id="btn-start-draw" class="w-full bg-blue-50 border border-blue-200 text-blue-700 font-bold py-2 rounded text-sm hover:bg-blue-100">구역 그리기</button>
-                        <div class="bg-gray-50 p-2 rounded border border-gray-200">
+                        <button onclick="startDrawing('boundary')" class="w-full bg-indigo-100 text-indigo-800 font-bold py-2 rounded text-sm hover:bg-indigo-200 border border-indigo-200 mb-2">
+                            <i class="fa-solid fa-vector-square mr-1"></i> 현장 경계 설정 (필수)
+                        </button>
+                        
+                        <div class="flex gap-1 items-center">
+                            <select id="draw-type-select" class="flex-1 text-xs border rounded p-2 bg-gray-50">
+                                <option value="danger">🚫 위험 구역 (알림)</option>
+                                <option value="work">🚧 작업 구역 (안전)</option>
+                                <option value="rest">☕ 휴게실</option>
+                                <option value="smoking">🚬 흡연실</option>
+                                <option value="aed">💓 AED 비치 장소</option>
+                                <option value="toilet">🚻 화장실</option>
+                            </select>
+                            <button onclick="startDrawing(document.getElementById('draw-type-select').value)" class="bg-blue-600 text-white font-bold py-2 px-3 rounded text-sm hover:bg-blue-700">
+                                <i class="fa-solid fa-pen-nib"></i> 추가
+                            </button>
+                        </div>
+
+                        <div class="bg-gray-50 p-2 rounded border border-gray-200 mt-2">
                             <label class="text-xs font-bold text-gray-600 block mb-1">계절 위험 관리</label>
                             <select id="seasonal-risk-select" class="w-full text-xs p-1 border rounded" onchange="updateSeasonalRisk(this.value)">
                                 <option value="none">위험 없음</option>
-                                <option value="heat">폭염 경보 (온열질환)</option>
-                                <option value="cold">한파 경보 (한랭질환)</option>
+                                <option value="heat">폭염 경보</option>
+                                <option value="cold">한파 경보</option>
                             </select>
                         </div>
+
+                        <button id="btn-health-manage" onclick="checkHealthSchedule(true)" class="w-full bg-green-100 border border-green-200 text-green-800 font-bold py-2 rounded text-sm hover:bg-green-200 hidden mt-2">
+                            <i class="fa-solid fa-calendar-check"></i> 보건/일정 관리 (검진일)
+                        </button>
                     </div>
                     <div id="tool-drawing" class="hidden space-y-2">
-                         <div class="bg-yellow-50 p-2 rounded text-xs text-center border text-yellow-800 font-bold">그리기 모드 ON</div>
-                         <button id="btn-finish-draw" class="w-full bg-green-600 text-white font-bold py-2 rounded text-sm">완료</button>
-                         <button id="btn-cancel-draw" class="w-full bg-gray-200 text-gray-600 font-bold py-2 rounded text-sm">취소</button>
+                         <div class="bg-yellow-50 p-2 rounded text-xs text-center border text-yellow-800 font-bold">
+                             <i class="fa-solid fa-thumbtack"></i> 지도에 핀을 꽂아주세요<br>(완료 시 자동 연결)
+                         </div>
+                         <button id="btn-finish-drawing" onclick="finishDrawing()" class="w-full bg-green-600 text-white font-bold py-2 rounded text-sm shadow">완료 (영역 생성)</button>
+                         <button onclick="cancelDrawing()" class="w-full bg-gray-200 text-gray-600 font-bold py-2 rounded text-sm">취소</button>
                     </div>
-                </div>
-
-                <div class="bg-white p-4 rounded shadow-sm border">
-                    <h3 class="font-bold text-gray-700 text-sm mb-2">구역 목록</h3>
-                    <div id="zone-list" class="space-y-2 max-h-40 overflow-y-auto custom-scroll text-xs text-gray-500 text-center">로딩중...</div>
                 </div>
             </div>
 
@@ -321,16 +278,12 @@
                     <div class="flex items-center gap-2">
                         <i class="fa-solid fa-circle-info text-blue-500"></i>
                         <span id="status-msg">GPS 연결 시도중...</span>
-                        <button onclick="refreshGPS()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full w-5 h-5 flex items-center justify-center transition shadow-sm ml-1" title="GPS 신호 초기화">
-                            <i class="fa-solid fa-rotate-right text-[10px]"></i>
-                        </button>
                     </div>
                     <span id="zone-status-display" class="text-[10px] font-bold text-slate-500">현재 구역: 탐색 중...</span>
-                    <span id="gps-accuracy-display" class="text-[9px] text-gray-400">오차: - m</span>
                 </div>
                 <div class="text-blue-600 mt-1">내 높이: <span id="my-alt-display">0m</span></div>
             </div>
-            <button onclick="triggerSOS()" id="btn-sos" class="sos-btn shadow-lg hover:scale-105 transition-transform"><i class="fa-solid fa-bell fa-xl mb-1"></i>SOS</button>
+            <button id="btn-sos" onclick="window.triggerSOS()" class="sos-btn shadow-lg hover:scale-105 transition-transform"><i class="fa-solid fa-bell fa-xl mb-1"></i>SOS</button>
         </div>
 
         <div class="mobile-stats-bar md:hidden">
@@ -344,7 +297,7 @@
     <div id="createSiteModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2200] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-lg p-6 w-full max-w-sm">
             <h3 class="text-lg font-bold mb-4">새 현장 생성</h3>
-            <input type="text" id="new-site-name" placeholder="현장 이름 (예: 1공구)" class="w-full border p-2 rounded mb-3">
+            <input type="text" id="new-site-name" placeholder="현장 이름" class="w-full border p-2 rounded mb-3">
             <div class="flex gap-2"><button onclick="createNewSite()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">생성</button><button onclick="document.getElementById('createSiteModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">취소</button></div>
         </div>
     </div>
@@ -354,23 +307,31 @@
             <h3 class="text-lg font-bold mb-4" id="zone-modal-title">새 구역 저장</h3>
             <input type="hidden" id="editing-zone-id">
             <input type="text" id="zone-name" placeholder="구역 이름" class="w-full border p-2 rounded mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            
             <div class="bg-gray-50 p-3 rounded border border-gray-200 mb-3">
                 <label class="text-xs font-bold text-gray-600 block mb-2">높이 설정 (3D)</label>
                 <div class="flex gap-2 items-center">
-                    <input type="number" id="zone-alt-min" value="-50" class="border w-16 text-center rounded p-1 text-sm" placeholder="최소">
+                    <input type="number" id="zone-alt-min" value="-50" class="border w-16 text-center rounded p-1 text-sm">
                     <span class="text-xs">m ~</span>
-                    <input type="number" id="zone-alt-max" value="500" class="border w-16 text-center rounded p-1 text-sm" placeholder="최대">
+                    <input type="number" id="zone-alt-max" value="500" class="border w-16 text-center rounded p-1 text-sm">
                     <span class="text-xs">m</span>
                 </div>
             </div>
+
             <div class="flex items-center gap-2 mb-3 bg-red-50 p-2 rounded">
                 <input type="checkbox" id="zone-is-confined" class="w-4 h-4 text-red-600 rounded">
                 <label for="zone-is-confined" class="text-sm font-bold text-red-700">위험 구역 (알림)</label>
             </div>
-            <div id="time-limit-box" class="hidden mb-3 ml-2">
-                <label class="text-xs text-gray-600">제한 시간(초): </label>
-                <input type="number" id="zone-time-limit" value="10" class="border w-16 text-center rounded p-1">
+            
+            <div id="time-limit-box" class="hidden mb-3 ml-2 bg-yellow-50 p-2 rounded border border-yellow-200">
+                <label class="text-xs font-bold text-gray-700 block mb-1">⏱️ 체류 제한 시간 (초)</label>
+                <div class="flex items-center gap-2">
+                    <input type="number" id="zone-time-limit" value="60" class="border w-full text-center rounded p-1">
+                    <span class="text-xs text-gray-500">초</span>
+                </div>
+                <p class="text-[10px] text-red-500 mt-1">* 초과 시 관리자에게 알림</p>
             </div>
+
             <div class="flex gap-2">
                 <button onclick="saveZone()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">저장</button>
                 <button onclick="document.getElementById('zoneModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded hover:bg-gray-300">취소</button>
@@ -380,73 +341,43 @@
 
     <div id="userInfoModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2100] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl overflow-y-auto max-h-[80vh]">
-            <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-address-card text-blue-600"></i> 근로자 정보 관리</h3>
+            <h3 class="text-lg font-bold mb-4">근로자 정보 관리</h3>
             <input type="hidden" id="edit-user-id">
             <div class="space-y-3">
-                <div class="bg-blue-50 p-3 rounded border border-blue-100">
-                    <label class="text-xs font-bold text-blue-800 block mb-1">📋 작업 구역 지정</label>
-                    <input type="text" id="edit-assigned-area" class="w-full border p-2 rounded text-sm bg-white" placeholder="예: A동 2층">
-                </div>
-                <div class="bg-green-50 p-3 rounded border border-green-100">
-                    <label class="text-xs font-bold text-green-800 block mb-1">📞 연락처</label>
-                    <input type="text" id="edit-personal-info" class="w-full border p-2 rounded text-sm bg-white" placeholder="010-1234-5678">
-                </div>
-                <hr class="border-gray-200">
-                <div><label class="text-xs font-bold text-gray-500 block mb-1">직종</label><input type="text" id="edit-job" class="w-full border p-2 rounded text-sm" placeholder="예: 용접"></div>
-                <div><label class="text-xs font-bold text-gray-500 block mb-1">건설 중장비</label><input type="text" id="edit-equip" class="w-full border p-2 rounded text-sm" placeholder="예: 굴삭기"></div>
-                <div>
-                    <label class="text-xs font-bold text-gray-500 block mb-1">검진 등급</label>
-                    <select id="edit-health-grade" class="w-full border p-2 rounded text-sm bg-white">
-                        <option value="A">A (건강양호)</option>
-                        <option value="B">B (경미한 이상)</option>
+                <input type="text" id="edit-assigned-area" class="w-full border p-2 rounded text-sm" placeholder="작업 구역">
+                <input type="text" id="edit-personal-info" class="w-full border p-2 rounded text-sm" placeholder="연락처">
+                <input type="text" id="edit-job" class="w-full border p-2 rounded text-sm" placeholder="직종">
+                <input type="text" id="edit-equip" class="w-full border p-2 rounded text-sm" placeholder="장비">
+                <div class="flex items-center gap-2"><input type="checkbox" id="edit-is-elderly"><label for="edit-is-elderly">고령자</label></div>
+                <hr>
+                <div class="bg-green-50 p-2 rounded border border-green-200">
+                    <label class="text-xs font-bold text-green-800 block mb-1">🏥 보건 관리 (권한 필요)</label>
+                    <input type="date" id="edit-checkup-date" class="w-full border p-2 rounded text-sm mb-1">
+                    <select id="edit-health-grade" class="w-full border p-2 rounded text-sm">
+                        <option value="A">A (양호)</option>
+                        <option value="B">B (경미)</option>
                         <option value="C1">C1 (직업병 요관찰)</option>
                         <option value="C2">C2 (일반질병 요관찰)</option>
                         <option value="D1">D1 (직업병 유소견)</option>
                         <option value="D2">D2 (일반질병 유소견)</option>
-                        <option value="R">R (2차검진 대상)</option>
+                        <option value="R">R (재검 대상)</option>
                     </select>
                 </div>
-                <div class="flex items-center gap-2 p-2 border rounded bg-gray-50">
-                    <input type="checkbox" id="edit-is-elderly" class="w-4 h-4">
-                    <label for="edit-is-elderly" class="text-sm text-gray-700">고령자</label>
-                </div>
             </div>
-            <div class="flex gap-2 mt-6">
-                <button onclick="saveUserInfo()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">저장</button>
-                <button onclick="document.getElementById('userInfoModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded hover:bg-gray-300">닫기</button>
-            </div>
+            <div class="flex gap-2 mt-6"><button onclick="saveUserInfo()" class="flex-1 bg-blue-600 text-white py-2 rounded">저장</button><button onclick="document.getElementById('userInfoModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">닫기</button></div>
         </div>
     </div>
 
     <div id="myInfoModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2100] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl overflow-y-auto">
-            <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-user-pen text-green-600"></i> 내 정보 수정</h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="text-xs font-bold text-gray-500 block mb-1">이름</label>
-                    <input type="text" id="my-name" class="w-full border p-2 rounded text-sm">
-                </div>
-                <div class="bg-red-50 p-3 rounded border border-red-100">
-                    <div class="flex items-center gap-2 mb-2">
-                        <i class="fa-solid fa-heart-pulse text-red-500"></i>
-                        <span class="text-xs font-bold text-red-800">건강 관리 (일일 측정)</span>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="text-[10px] text-gray-600 block">혈압 (mmHg)</label>
-                            <input type="text" id="my-bp" class="w-full border p-1 rounded text-sm bg-white" placeholder="예: 120/80">
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-gray-600 block">혈당 (mg/dL)</label>
-                            <input type="number" id="my-sugar" class="w-full border p-1 rounded text-sm bg-white" placeholder="예: 95">
-                        </div>
-                    </div>
-                </div>
+        <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+            <h3 class="text-lg font-bold mb-4">내 정보 수정</h3>
+            <input type="text" id="my-name" placeholder="이름" class="w-full border p-2 rounded mb-2">
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <input type="text" id="my-bp" placeholder="혈압" class="border p-2 rounded">
+                <input type="number" id="my-sugar" placeholder="혈당" class="border p-2 rounded">
             </div>
-            <div class="flex gap-2 mt-6">
-                <button onclick="saveMyInfo()" class="flex-1 bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700">저장</button>
-                <button onclick="document.getElementById('myInfoModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded hover:bg-gray-300">닫기</button>
-            </div>
+            <button onclick="saveMyInfo()" class="w-full bg-green-600 text-white py-2 rounded font-bold">저장</button>
+            <button onclick="document.getElementById('myInfoModal').classList.add('hidden')" class="w-full mt-2 bg-gray-200 py-2 rounded">닫기</button>
         </div>
     </div>
 
@@ -456,7 +387,7 @@
             <input type="hidden" id="pw-target-user-id">
             <div class="mb-4">
                 <label class="text-xs font-bold text-gray-600 block mb-1">새 비밀번호</label>
-                <input type="password" id="new-password" class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="새 비밀번호 입력">
+                <input type="password" id="new-password" class="w-full border p-2 rounded">
             </div>
             <div class="flex gap-2">
                 <button onclick="saveNewPassword()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">변경</button>
@@ -485,501 +416,397 @@
         const db = getFirestore(app);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         
-        // [Integrated] Constants from Source B for 100m limit logic
         const SITE_CENTER = { lat: 37.5665, lng: 126.9780 };
-        const MAX_DISTANCE_KM = 0.1; // 100m
-
         let map, currentUser = null, currentSiteId = null;
         let zones = [], activeWorkers = [];
         let mapLayers = { zones: [], users: [], temp: [] };
-        let isDrawing = false, drawingPoints = [], tempPolyline;
-        let gpsWatchId = null, myZoneStatus = { inDanger: false, zoneName: null };
-        let currentAltitude = 0, currentLat = null, currentLng = null, currentAccuracy = 0;
-        let isOutOfRange = false, isFirstGPSFix = true;
-        let lastAlerts = { sos: {}, zone: {} }, accuracyCircle = null, deferredPrompt;
         
-        // [Integrated] Wake Lock variable
-        let wakeLock = null;
+        let isDrawing = false, drawType = null, drawingPoints = [];
+        let drawingMarkers = []; 
+        let gpsWatchId = null;
+        let audioCtx;
+        let alertedSOS = new Set();
 
-        // Collection References Helper
         const getColRef = (name) => collection(db, 'artifacts', appId, 'public', 'data', name);
-        
         const isManager = (role) => ['super_admin', 'admin', 'safety', 'health', 'supervisor'].includes(role);
         const isSiteAdmin = (role) => ['super_admin', 'admin', 'safety', 'health'].includes(role);
 
-        window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; document.getElementById('pwa-install-area').classList.remove('hidden'); document.getElementById('btn-install-guide-android').classList.remove('hidden'); });
-
-        // [Integrated] Wake Lock Implementation from Source B
-        async function requestWakeLock() {
-            try {
-                if ('wakeLock' in navigator) {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                    wakeLock.addEventListener('release', () => { console.log('Wake Lock released'); });
-                }
-            } catch (err) {
-                console.warn('Wake Lock failed. Using video fallback.', err);
-            }
-        }
-
-        function enableNoSleep() {
-            const video = document.getElementById('no-sleep-video');
-            if (video) video.play().catch(e => console.log("Video play error", e));
-            requestWakeLock();
-        }
-
-        // Re-enable wake lock on visibility change
-        document.addEventListener('visibilitychange', async () => {
-            if (wakeLock !== null && document.visibilityState === 'visible') await requestWakeLock();
-        });
-
-        // Trigger on interaction
-        document.addEventListener('click', enableNoSleep, { once: true });
-        document.addEventListener('touchstart', enableNoSleep, { once: true });
-
-        async function initApp() {
+        window.addEventListener('DOMContentLoaded', async () => {
              try {
                 await signInAnonymously(auth);
-                // Create Default Super Admin if missing
                 const q = query(getColRef('users'), where('id', '==', 'dark584'));
-                const snap = await getDocs(q);
-                if (snap.empty) {
-                    await addDoc(getColRef('users'), { id: 'dark584', pw: 'Rufghs0423!!', name: '최고 관리자', role: 'super_admin', approved: true, siteId: 'all' });
-                }
+                if((await getDocs(q)).empty) await addDoc(getColRef('users'), { id: 'dark584', pw: 'Rufghs0423!!', name: '최고 관리자', role: 'super_admin', approved: true, siteId: 'all' });
                 
-                // Auto Login
-                const savedId = localStorage.getItem('savedUserId');
-                if (savedId) {
-                    const qUser = query(getColRef('users'), where('id', '==', savedId));
-                    const sUser = await getDocs(qUser);
-                    if (!sUser.empty) {
-                        const d = sUser.docs[0];
-                        const u = { ...d.data(), id: d.id };
-                        if (u.approved) {
-                            if(u.id === 'dark584') u.role = 'super_admin';
-                            currentUser = u;
-                            currentSiteId = u.siteId;
-                            document.getElementById('loading-screen').classList.add('hidden');
+                const savedUser = localStorage.getItem('savedUser');
+                if(savedUser) {
+                    const u = JSON.parse(savedUser);
+                    const snap = await getDocs(query(getColRef('users'), where('id', '==', u.id)));
+                    if(!snap.empty) {
+                        currentUser = { ...snap.docs[0].data(), docId: snap.docs[0].id };
+                        if(currentUser.approved) {
+                            if(currentUser.id === 'dark584') currentUser.role = 'super_admin';
+                            currentSiteId = currentUser.siteId;
                             startSession();
                             return;
                         }
                     }
                 }
-                loadSitesToSelect();
+                loadSitesToSelect('reg-site');
                 document.getElementById('loading-screen').classList.add('hidden');
                 document.getElementById('auth-screen').classList.remove('hidden');
-             } catch(e) { console.error(e); document.getElementById('loading-screen').classList.add('hidden'); document.getElementById('auth-screen').classList.remove('hidden'); }
-        }
-        initApp();
+             } catch(e) { console.error(e); }
+        });
 
-        function loadSitesToSelect() {
+        function loadSitesToSelect(elementId) {
             onSnapshot(getColRef('sites'), (snap) => {
-                const sel = document.getElementById('reg-site');
+                const sel = document.getElementById(elementId);
                 sel.innerHTML = '<option value="" disabled selected>현장 선택</option>';
-                snap.forEach(d => {
-                    const s = d.data();
-                    sel.innerHTML += `<option value="${d.id}">${s.name}</option>`;
-                });
+                snap.forEach(d => { sel.innerHTML += `<option value="${d.id}">${d.data().name}</option>`; });
             });
         }
 
-        async function handleLogin() {
+        window.handleLogin = async () => {
             const id = document.getElementById('login-id').value;
             const pw = document.getElementById('login-pw').value;
-            if(!id || !pw) return alert("입력 필요");
+            if(id === 'dark584' && pw === 'Rufghs0423!!') {
+                currentUser = { id: 'dark584', name: '최고 관리자', role: 'super_admin', approved: true, siteId: 'all' };
+                currentSiteId = 'all';
+                startSession();
+                return;
+            }
             const q = query(getColRef('users'), where('id', '==', id), where('pw', '==', pw));
             const snap = await getDocs(q);
             if(snap.empty) return alert("정보 불일치");
-            const u = { ...snap.docs[0].data(), id: snap.docs[0].id };
-            if(!u.approved) return alert("승인 대기 중");
-            
-            if (id === 'dark584' && pw === 'Rufghs0423!!') { u.role = 'super_admin'; u.siteId = 'all'; }
-            
-            currentUser = u;
-            currentSiteId = u.siteId;
-            if(document.getElementById('auto-login-check').checked) localStorage.setItem('savedUserId', u.id);
+            const u = { ...snap.docs[0].data(), docId: snap.docs[0].id };
+            if(!u.approved) return alert("승인 대기");
+            currentUser = u; currentSiteId = u.siteId;
+            if(document.getElementById('auto-login-check').checked) localStorage.setItem('savedUser', JSON.stringify(u));
             startSession();
-        }
+        };
 
-        async function handleSignup() {
+        window.handleSignup = async () => {
             const id = document.getElementById('reg-id').value;
             const name = document.getElementById('reg-name').value;
             const pw = document.getElementById('reg-pw').value;
             const role = document.getElementById('reg-role').value;
             const siteId = document.getElementById('reg-site').value;
-            if(!id||!name||!pw||!siteId) return alert("모든 정보 입력 필요 (현장 필수)");
-            
-            const q = query(getColRef('users'), where('id', '==', id));
-            if(!(await getDocs(q)).empty) return alert("ID 중복");
-            
+            if(!id||!name||!pw||!siteId) return alert("정보 입력");
             await addDoc(getColRef('users'), { id, name, pw, role, siteId, approved: false });
-            alert("신청 완료. 관리자 승인 대기"); switchAuth('login');
-        }
-
-        function switchAuth(mode) {
-             document.getElementById('form-login').classList.toggle('hidden', mode !== 'login');
-             document.getElementById('form-signup').classList.toggle('hidden', mode === 'login');
-        }
+            alert("신청 완료");
+        };
 
         async function startSession() {
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('main-dashboard').classList.remove('hidden');
             document.getElementById('user-display').innerText = `${currentUser.name} (${getRoleName(currentUser.role)})`;
             
-            if(isManager(currentUser.role)) {
-                document.getElementById('admin-tools').classList.remove('hidden');
-                document.getElementById('tab-users').classList.remove('hidden');
-            }
+            if(isManager(currentUser.role)) document.getElementById('admin-tools').classList.remove('hidden');
+            if(isSiteAdmin(currentUser.role)) document.getElementById('tab-users').classList.remove('hidden');
             if(currentUser.role === 'super_admin') {
-                document.getElementById('btn-manage-sites').classList.remove('hidden');
+                document.getElementById('super-admin-controls').classList.remove('hidden');
+                loadSitesToSelect('site-selector');
+                document.getElementById('btn-health-manage').classList.remove('hidden');
+                window.checkHealthSchedule(false);
+            } else if (currentUser.role === 'health') {
+                document.getElementById('btn-health-manage').classList.remove('hidden');
+                window.checkHealthSchedule(false);
             }
             if(currentUser.role === 'worker') document.getElementById('btn-my-info').classList.remove('hidden');
 
-            enableNoSleep();
             initMap();
             subscribeData();
-            
-            // [Integrated] Start robust GPS logic
+            enableNoSleep();
             startGPS(); 
             setInterval(renderDangerList, 1000);
         }
 
         function initMap() {
-            map = L.map('map', {zoomControl: false}).setView([SITE_CENTER.lat, SITE_CENTER.lng], 16);
+            map = L.map('map', {zoomControl: false}).setView([37.5665, 126.9780], 16); 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(map);
-            L.control.zoom({position: 'bottomright'}).addTo(map);
-            // Draw Center
-            L.circle([SITE_CENTER.lat, SITE_CENTER.lng], { radius: 10, color: 'black', fillColor: 'black' }).bindPopup("현장 기준점").addTo(map);
-            map.on('click', (e) => { if(isDrawing) addDrawingPoint(e.latlng); });
+            map.on('click', (e) => { if(isDrawing) window.addDrawingPoint(e.latlng); });
         }
 
         function subscribeData() {
-            // [Integrated] Subscribe to Settings (Seasonal Risk) from Source B
-            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'settings'), (snap) => {
-                let risk = 'none';
-                snap.forEach(doc => { if(doc.id === 'seasonal') risk = doc.data().risk; });
-                const selectEl = document.getElementById('seasonal-risk-select');
-                if(selectEl) selectEl.value = risk;
-                const banner = document.getElementById('seasonal-risk-banner');
-                const msgEl = document.getElementById('seasonal-risk-msg');
-                if(risk === 'heat') { banner.classList.remove('hidden', 'bg-blue-500'); banner.classList.add('bg-red-500'); msgEl.innerText = "🔥 폭염 경보 발령! 수분 섭취 및 휴식 철저"; } 
-                else if (risk === 'cold') { banner.classList.remove('hidden', 'bg-red-500'); banner.classList.add('bg-blue-500'); msgEl.innerText = "❄️ 한파 경보 발령! 체온 유지 및 미끄럼 주의"; } 
-                else { banner.classList.add('hidden'); }
-            });
-            window.updateSeasonalRisk = async (riskValue) => { if(currentUser.role === 'super_admin' || currentUser.role === 'admin') await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'seasonal'), { risk: riskValue }); };
-
-
-            // 1. Zones
+            // Zones
             let qZone = getColRef('zones');
             if(currentSiteId !== 'all') qZone = query(qZone, where('siteId', '==', currentSiteId));
             
             onSnapshot(qZone, (snap) => {
-                zones = []; mapLayers.zones.forEach(l => map.removeLayer(l)); mapLayers.zones = [];
-                const listEl = document.getElementById('zone-list'); listEl.innerHTML = '';
-                if(snap.empty) listEl.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">구역 없음</p>';
-                
-                snap.forEach(doc => {
-                    const z = { id: doc.id, ...doc.data() };
-                    if(typeof z.points === 'string') z.points = JSON.parse(z.points);
+                mapLayers.zones.forEach(l => map.removeLayer(l)); mapLayers.zones = [];
+                const zoneList = document.getElementById('zone-list'); zoneList.innerHTML = '';
+                zones = [];
+                snap.forEach(d => {
+                    const z = { ...d.data(), id: d.id, points: JSON.parse(d.data().points) };
                     zones.push(z);
-                    const color = z.isConfined ? '#ef4444' : '#3b82f6';
-                    const poly = L.polygon(z.points, { color, fillColor: color, fillOpacity: 0.15, weight: 2 }).addTo(map);
-                    poly.bindTooltip(z.name);
-                    mapLayers.zones.push(poly);
+                    const color = getZoneColor(z.type);
+                    const poly = L.polygon(z.points, { color, fillColor: color, fillOpacity: z.type==='boundary'?0.05:0.2, weight: 2 }).addTo(map);
+                    poly.bindTooltip(z.name); mapLayers.zones.push(poly);
                     
-                    const div = document.createElement('div');
-                    div.className = "flex justify-between p-2 border rounded hover:bg-gray-50 cursor-pointer items-center mb-1";
-                    let btns = '';
-                    if(isSiteAdmin(currentUser.role)) {
-                         btns = `<div class="flex gap-1"><button onclick="window.deleteZone('${z.id}')" class="text-gray-400 hover:text-red-500 p-1"><i class="fa-solid fa-trash"></i></button></div>`;
-                    }
-                    div.innerHTML = `<div onclick="map.fitBounds([${z.points.map(p=>`[${p[0]},${p[1]}]`).join(',')}])" class="flex-1"><span class="font-bold ${z.isConfined?'text-red-500':'text-blue-500'}">${z.name}</span><div class="text-[10px] text-gray-500">H: ${z.minAlt}~${z.maxAlt}m</div></div>${btns}`;
-                    listEl.appendChild(div);
+                    const settingBtn = (z.isConfined && isManager(currentUser.role)) ? `<button onclick="openZoneSettings('${z.id}')" class="text-gray-500 hover:text-blue-600 p-1 mr-2"><i class="fa-solid fa-gear"></i></button>` : '';
+                    const delBtn = isSiteAdmin(currentUser.role) ? `<button onclick="deleteZone('${z.id}')" class="text-red-400 hover:text-red-600 p-1"><i class="fa-solid fa-trash"></i></button>` : '';
+                    
+                    zoneList.innerHTML += `<div class="flex justify-between p-2 border-b text-sm items-center hover:bg-gray-50">
+                        <div onclick="map.fitBounds([${z.points.map(p=>`[${p[0]},${p[1]}]`).join(',')}])" class="flex-1 cursor-pointer">
+                            <span class="w-2 h-2 inline-block rounded-full mr-2" style="background:${color}"></span>
+                            <span class="font-bold">${z.name}</span>
+                            ${z.isConfined ? `<span class="text-[10px] text-red-500 ml-1 font-bold">⚠️ ${z.timeLimit||60}초</span>` : ''}
+                        </div>
+                        <div>${settingBtn}${delBtn}</div>
+                    </div>`;
                 });
             });
 
-            // 2. Workers
+            // Workers
             let qWorker = getColRef('workers');
             if(currentSiteId !== 'all') qWorker = query(qWorker, where('siteId', '==', currentSiteId));
 
             onSnapshot(qWorker, (snap) => {
-                mapLayers.users.forEach(m => map.removeLayer(m)); mapLayers.users = []; activeWorkers = [];
-                snap.forEach(doc => {
-                    const w = doc.data();
-                    const isMe = (w.id === currentUser.id);
-                    if(Date.now() - w.lastUpdate > 300000) return; 
-                    
+                mapLayers.users.forEach(l => map.removeLayer(l)); mapLayers.users = []; activeWorkers = [];
+                let isAnySOS = false;
+                snap.forEach(d => {
+                    const w = d.data();
+                    if(Date.now() - w.lastUpdate > 300000) return;
                     activeWorkers.push(w);
-                    // [Integrated] Visibility Logic: Only show if isVisible is true OR it's me
-                    if(!w.isVisible && !isMe) return;
+                    if (w.isSOS) {
+                        isAnySOS = true;
+                        if (!alertedSOS.has(w.id)) {
+                            showToast(`🚨 구조 요청! - ${w.name}`, 'danger');
+                            alertedSOS.add(w.id); playEmergencySound();
+                        }
+                    } else { alertedSOS.delete(w.id); }
 
-                    let color = '#2563eb';
-                    if (w.role === 'super_admin' || w.role === 'admin') color = '#f97316';
-                    else if (w.role === 'safety') color = '#10b981';
-                    else if (w.role === 'health') color = '#ec4899';
-                    else if (w.role === 'supervisor') color = '#8b5cf6';
+                    if(!w.isVisible) return; 
+
+                    // [수정] 마커 색상 우선순위: SOS(빨강) > 위험구역(보라) > 직책별(기본)
+                    let color = '#2563eb'; // 기본 파랑
+                    if(w.role === 'admin') color = '#f97316';
                     
-                    if(w.isSOS) color = '#ef4444';
+                    if (w.dangerEntryTime) color = '#9333ea'; // [보라색] 위험 구역 진입 시
+                    if (w.isSOS) color = '#ef4444'; // [빨강] SOS
 
-                    const marker = L.circleMarker([w.lat, w.lng], { radius: 6, color: color, fillColor: color, fillOpacity: 0.7 }).addTo(map);
+                    const marker = L.circleMarker([w.lat, w.lng], { radius: 6, color, fillColor:color, fillOpacity:0.8 }).addTo(map);
                     
-                    if(w.isSOS) {
-                        const ring = L.divIcon({ className: 'sos-marker-ring', iconSize: [40,40], iconAnchor: [20,20] });
-                        L.marker([w.lat, w.lng], { icon: ring }).addTo(map);
-                    } else if (w.dangerEntryTime) {
-                        const ring = L.divIcon({ className: 'danger-zone-ring', iconSize: [40,40], iconAnchor: [20,20] });
-                        L.marker([w.lat, w.lng], { icon: ring }).addTo(map);
-                    }
+                    if(w.isSOS) L.marker([w.lat, w.lng], { icon: L.divIcon({ className: 'sos-marker-ring', iconSize:[40,40], iconAnchor:[20,20] }) }).addTo(map);
+                    else if(w.dangerEntryTime) L.marker([w.lat, w.lng], { icon: L.divIcon({ className: 'danger-zone-ring', iconSize:[40,40], iconAnchor:[20,20] }) }).addTo(map);
 
-                    let popup = `<b>${w.name}</b> <span class="text-xs text-gray-500">(${getRoleName(w.role)})</span>`;
-                    if(isManager(currentUser.role)) popup += `<br>${w.job || '-'} / ${w.assignedArea || '-'}`;
-                    marker.bindPopup(popup);
-                    w.marker = marker; mapLayers.users.push(marker);
+                    marker.bindPopup(`<b>${w.name}</b> (${getRoleName(w.role)})<br>${w.job||''}`);
+                    mapLayers.users.push(marker);
                 });
-                renderDangerList(); updateStats(); checkSOS();
+                
+                const sosBtn = document.getElementById('btn-sos');
+                const mySOS = activeWorkers.find(w => w.id === currentUser.id && w.isSOS);
+                if(mySOS) sosBtn.classList.add('active'); else sosBtn.classList.remove('active');
+
+                updateStats();
             });
 
-            // 3. User Approvals
+            // Users List
             if(isSiteAdmin(currentUser.role)) {
-                let qUsers = getColRef('users');
-                if(currentSiteId !== 'all') qUsers = query(qUsers, where('siteId', '==', currentSiteId));
-                
-                onSnapshot(qUsers, (snap) => {
-                    const pList = document.getElementById('pending-list');
-                    const aList = document.getElementById('approved-list');
-                    pList.innerHTML = ''; aList.innerHTML = '';
-                    
-                    snap.forEach(doc => {
-                        const u = { ...doc.data(), docId: doc.id };
-                        if(u.role === 'super_admin') return; 
-                        
-                        const item = document.createElement('div');
-                        item.className = "bg-white p-2 border rounded mb-1 flex justify-between items-center";
-                        item.innerHTML = `<div><span class="font-bold text-gray-700">${u.name}</span> <span class="text-xs text-blue-500">(${getRoleName(u.role)})</span></div>`;
-                        
-                        const actions = document.createElement('div');
-                        if(!u.approved) {
-                             const btn = document.createElement('button'); btn.innerText = "승인"; btn.className = "text-blue-600 font-bold mr-2";
-                             btn.onclick = () => approveUser(u.docId);
-                             actions.appendChild(btn);
-                             pList.appendChild(item);
-                        } else {
-                             if(currentUser.role === 'super_admin' || currentUser.role === 'admin') {
-                                 const btn = document.createElement('button'); btn.innerHTML = '<i class="fa-solid fa-trash"></i>'; btn.className = "text-red-500";
-                                 btn.onclick = () => deleteUser(u.docId);
-                                 actions.appendChild(btn);
-                             }
-                             item.onclick = () => window.openInfoModal(u.id, u.job, u.equip, u.healthGrade, u.isElderly, u.assignedArea, u.personalInfo);
-                             aList.appendChild(item);
-                        }
-                        item.appendChild(actions);
+                let qU = getColRef('users');
+                if(currentSiteId !== 'all') qU = query(qU, where('siteId', '==', currentSiteId));
+                onSnapshot(qU, (snap) => {
+                    document.getElementById('pending-list').innerHTML = ''; document.getElementById('approved-list').innerHTML = '';
+                    snap.forEach(d => {
+                        const u = { ...d.data(), id: d.id };
+                        if(u.role === 'super_admin') return;
+                        const html = `<div class="bg-white p-2 border rounded mb-1 flex justify-between items-center">
+                            <div onclick="openInfoModal('${u.id}', '${u.job||''}', '${u.equip||''}', '${u.healthGrade||''}', ${u.isElderly||false}, '${u.assignedArea||''}', '${u.personalInfo||''}', '${u.checkupDate||''}')" class="cursor-pointer flex-1">
+                                <span class="font-bold">${u.name}</span> <span class="text-xs text-gray-500">(${getRoleName(u.role)})</span>
+                            </div>
+                            <div>
+                                ${!u.approved ? `<button onclick="approveUser('${u.id}')" class="text-blue-600 font-bold mr-2">승인</button>` : ''}
+                                <button onclick="deleteUser('${u.id}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </div>`;
+                        if(!u.approved) document.getElementById('pending-list').innerHTML += html;
+                        else document.getElementById('approved-list').innerHTML += html;
                     });
                 });
             }
         }
-        
-        // Site Mgmt
-        window.openCreateSiteModal = () => document.getElementById('createSiteModal').classList.remove('hidden');
-        window.createNewSite = async () => {
-            const name = document.getElementById('new-site-name').value;
-            if(!name) return;
-            await addDoc(getColRef('sites'), { name });
-            document.getElementById('createSiteModal').classList.add('hidden');
-            alert('현장이 생성되었습니다.');
-        };
 
-        window.saveZone = async () => {
-            if(!isManager(currentUser.role)) return alert('권한 없음');
-            if(currentSiteId === 'all') return alert("전체 관제 모드에서는 구역을 생성할 수 없습니다. 특정 현장 계정으로 로그인하거나 기능을 추가해야 합니다.");
-            
-            const name = document.getElementById('zone-name').value;
-            const minAlt = document.getElementById('zone-alt-min').value;
-            const maxAlt = document.getElementById('zone-alt-max').value;
-            const isConfined = document.getElementById('zone-is-confined').checked;
-            
-            const zoneData = { 
-                name, 
-                points: JSON.stringify(drawingPoints), 
-                isConfined, 
-                minAlt: parseInt(minAlt), 
-                maxAlt: parseInt(maxAlt),
-                siteId: currentSiteId
-            };
-            await addDoc(getColRef('zones'), zoneData);
-            cancelDrawing();
-            document.getElementById('zoneModal').classList.add('hidden');
-        };
+        async function updateUserLocation(lat, lng) {
+            if(!currentUser) return;
+            let inDanger = false;
+            let inAnyZone = false;
+            let zoneName = null;
 
-        window.startDrawing = () => { isDrawing = true; drawingPoints = []; document.getElementById('tool-default').classList.add('hidden'); document.getElementById('tool-drawing').classList.remove('hidden'); };
-        window.cancelDrawing = () => { isDrawing = false; document.getElementById('tool-default').classList.remove('hidden'); document.getElementById('tool-drawing').classList.add('hidden'); mapLayers.temp.forEach(l=>map.removeLayer(l)); mapLayers.temp=[]; };
-        window.addDrawingPoint = (latlng) => { 
-            drawingPoints.push([latlng.lat, latlng.lng]); 
-            const m = L.circleMarker(latlng, {radius:4}).addTo(map); mapLayers.temp.push(m);
-        };
-        document.getElementById('btn-finish-draw').onclick = () => { 
-            if(drawingPoints.length<3) return alert("3점 이상"); 
-            document.getElementById('zoneModal').classList.remove('hidden'); 
-        };
-
-        window.deleteZone = async (id) => { if(confirm("삭제?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'zones', id)); };
-        window.deleteUser = async (id) => { if(confirm("삭제?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id)); };
-        window.approveUser = async (id) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id), { approved: true });
-
-        // [Integrated] Improved GPS Logic with Capacitor Check & Distance Calc
-        async function startGPS() {
-            document.getElementById('status-msg').innerText = "GPS 연결 시도 중...";
-            if (window.Capacitor) {
-                try {
-                    const { Geolocation } = Capacitor.Plugins;
-                    await Geolocation.requestPermissions();
-                    gpsWatchId = Geolocation.watchPosition({ enableHighAccuracy: true, timeout: 10000 }, (pos, err) => {
-                        if(err) { console.error(err); return; }
-                        if(pos && pos.coords) handlePositionUpdate(pos.coords);
-                    });
-                    document.getElementById('status-msg').innerText = "GPS 추적 중 (App) 🟢";
-                } catch(e) { console.error("Native GPS Error", e); startWebGPS(); }
-            } else { startWebGPS(); }
-        }
-
-        function startWebGPS() {
-            if (!navigator.geolocation) { alert("이 기기는 GPS를 지원하지 않습니다."); return; }
-            gpsWatchId = navigator.geolocation.watchPosition((pos) => {
-                document.getElementById('status-msg').innerText = "GPS 추적 중 🟢";
-                handlePositionUpdate(pos.coords);
-            }, (err) => {
-                console.log("GPS Error: " + err.message);
-                document.getElementById('status-msg').innerText = "GPS 신호 약함 🔴";
-            }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
-        }
-
-        // Distance Utils
-        function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-            var R = 6371; var dLat = deg2rad(lat2-lat1); var dLon = deg2rad(lon2-lon1); 
-            var a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2); 
-            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); return R * c; 
-        }
-        function deg2rad(deg) { return deg * (Math.PI/180); }
-
-        function handlePositionUpdate(coords) {
-            const lat = coords.latitude;
-            const lng = coords.longitude;
-            const alt = coords.altitude !== null ? Math.round(coords.altitude) : currentAltitude;
-            currentLat = lat; currentLng = lng;
-            
-            if(isFirstGPSFix) { map.setView([lat, lng], 18); isFirstGPSFix=false; }
-            
-            // 1. Zone Check
-            let inDanger = false; let zoneName = null; let inAnyZone2D = false;
-            for(const z of zones) {
-                if(isPointInPolygon([lat, lng], z.points)) {
-                    inAnyZone2D = true;
-                    if(alt >= z.minAlt && alt <= z.maxAlt) {
-                        if(z.isConfined) inDanger = true;
-                        zoneName = z.name;
-                    }
-                }
+            // [수정] 위험 구역 우선 판정 로직
+            for (const z of zones) {
+                 const inside = isPointInPolygon([lat, lng], z.points);
+                 if(inside) {
+                     inAnyZone = true;
+                     if(z.isConfined) {
+                         inDanger = true; // 위험 구역 발견 시 즉시 위험 상태로
+                         zoneName = z.name;
+                     } else if (!inDanger) {
+                         // 위험 구역이 아닐 때만 일반 구역 이름 저장 (이미 위험구역이면 덮어쓰지 않음)
+                         zoneName = z.name;
+                     }
+                 }
             }
             
-            // 2. Distance Check (100m)
             const dist = getDistanceFromLatLonInKm(lat, lng, SITE_CENTER.lat, SITE_CENTER.lng);
-            // If inside ANY zone (2D), consider active. If outside all zones AND dist > 100m -> Out
-            const isOut = (dist > MAX_DISTANCE_KM) && !inAnyZone2D;
+            const isVisible = (dist <= 0.1 || inAnyZone);
 
-            if (isOut) { 
-                if(!isOutOfRange) { isOutOfRange = true; showToast("🚫 작업 반경(100m) 이탈", "warning"); document.getElementById('status-msg').innerText = "🚫 반경 이탈"; } 
-            } else { 
-                if(isOutOfRange) { isOutOfRange = false; showToast("✅ 복귀 완료", "success"); } 
-            }
-
-            document.getElementById('gps-indicator').classList.remove('bg-red-100');
-            document.getElementById('gps-indicator').classList.add('bg-green-100');
-            document.getElementById('zone-status-display').innerText = zoneName ? `구역: ${zoneName}` : "구역: 없음";
-
-            // Update Worker
-            const userRef = doc(getColRef('workers'), currentUser.id);
-            const updateData = {
+            const payload = {
                 id: currentUser.id, name: currentUser.name, role: currentUser.role, siteId: currentUser.siteId,
-                lat: lat, lng: lng, alt: alt,
-                lastUpdate: Date.now(), 
-                isVisible: !isOut, // [Integrated] Logic
-                dangerEntryTime: inDanger ? Date.now() : null,
+                lat, lng, lastUpdate: Date.now(), isVisible,
+                dangerEntryTime: inDanger ? Date.now() : null, // 위험구역 진입 시 시간 기록
                 currentZoneName: zoneName
             };
-            setDoc(userRef, updateData, { merge: true });
-        }
-        
-        window.refreshGPS = () => {
-             if (window.Capacitor && gpsWatchId) Capacitor.Plugins.Geolocation.clearWatch({ id: gpsWatchId });
-             else if(gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
-             gpsWatchId = null;
-             setTimeout(() => { startGPS(); }, 500);
-        }
-
-        // Utils
-        function isPointInPolygon(p, vs) { var x = p[0], y = p[1]; var inside = false; for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) { var xi = vs[i][0], yi = vs[i][1]; var xj = vs[j][0], yj = vs[j][1]; var intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi); if (intersect) inside = !inside; } return inside; }
-        function getRoleName(r) { 
-            if(r==='super_admin') return '최고관리자'; 
-            if(r==='admin') return '현장소장'; 
-            if(r==='safety') return '안전관리자'; 
-            if(r==='health') return '보건관리자'; 
-            if(r==='supervisor') return '관리감독자'; 
-            if(r==='guard') return '경비'; 
-            return '근로자'; 
-        }
-        
-        // [Integrated] Updated Statistics to include Mobile Bar logic from Source B
-        function updateStats() { 
-            let total = 0, danger = 0, sos = 0;
-            let active = 0;
-            let out = 0;
             
-            activeWorkers.forEach(w => {
-                total++;
-                if(w.isSOS) sos++;
-                if(w.isVisible) active++;
-                else out++;
-                if(w.dangerEntryTime) danger++;
-            });
-
-            // Desktop
-            document.getElementById('stat-total').innerText = total;
-            document.getElementById('stat-active').innerText = active;
-            document.getElementById('stat-out').innerText = out;
-            document.getElementById('stat-danger').innerText = danger;
-
-            // Mobile
-            document.getElementById('mobile-stat-total').innerText = total;
-            document.getElementById('mobile-stat-active').innerText = active;
-            document.getElementById('mobile-stat-out').innerText = out;
-            document.getElementById('mobile-stat-danger').innerText = danger;
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'workers', currentUser.id), payload, { merge: true });
         }
 
-        function renderDangerList() { /* ... */ }
-        function checkSOS() { /* ... */ }
-        function showToast(msg, type) { const c = document.getElementById('toast-container'); const t = document.createElement('div'); t.className = `toast ${type}`; let icon = 'fa-info-circle text-blue-500'; if(type === 'danger') icon = 'fa-circle-exclamation text-red-500'; else if(type === 'success') icon = 'fa-circle-check text-green-500'; else if(type === 'warning') icon = 'fa-triangle-exclamation text-orange-500'; t.innerHTML = `<i class="fa-solid ${icon}"></i><div><div class="font-bold text-gray-800">알림</div><div class="text-sm text-gray-600">${msg}</div></div>`; c.appendChild(t); setTimeout(()=>t.remove(), 4000); }
+        // --- Functions ---
+        window.startDrawing = (type) => { isDrawing = true; drawType = type; drawingPoints = []; document.getElementById('tool-default').classList.add('hidden'); document.getElementById('tool-drawing').classList.remove('hidden'); };
+        window.addDrawingPoint = (latlng) => { drawingPoints.push([latlng.lat, latlng.lng]); const m = L.circleMarker(latlng, {radius:5, color:'#ef4444'}).addTo(map); drawingMarkers.push(m); };
+        window.finishDrawing = () => { if(drawingPoints.length<3)return alert("3점 이상"); document.getElementById('zoneModal').classList.remove('hidden'); };
+        window.cancelDrawing = () => { isDrawing = false; drawingPoints = []; drawingMarkers.forEach(m=>map.removeLayer(m)); drawingMarkers=[]; document.getElementById('tool-default').classList.remove('hidden'); document.getElementById('tool-drawing').classList.add('hidden'); };
+        
+        window.saveZone = async () => {
+            const name = document.getElementById('zone-name').value;
+            const isConfined = document.getElementById('zone-is-confined').checked;
+            const timeLimit = document.getElementById('zone-time-limit').value; // [추가] 시간 설정 값
+            const id = document.getElementById('editing-zone-id').value;
+            
+            const data = { 
+                name, points: JSON.stringify(drawingPoints), isConfined, 
+                minAlt: -10, maxAlt: 500, siteId: currentSiteId,
+                timeLimit: isConfined ? parseInt(timeLimit) : 0 // 위험구역일 때만 저장
+            };
+            
+            if(id) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'zones', id), { name, isConfined, timeLimit: parseInt(timeLimit) });
+            else await addDoc(getColRef('zones'), data);
+            
+            document.getElementById('zoneModal').classList.add('hidden');
+            window.cancelDrawing();
+        };
 
-        // Event Bindings
-        document.getElementById('btn-login').onclick = handleLogin;
-        document.getElementById('btn-signup').onclick = handleSignup;
-        document.getElementById('tab-login').onclick = () => switchAuth('login');
-        document.getElementById('tab-signup').onclick = () => switchAuth('signup');
-        document.getElementById('alt-slider').oninput = (e) => { currentAltitude = parseInt(e.target.value); document.getElementById('current-alt-display').innerText = `${currentAltitude}m`; document.getElementById('my-alt-display').innerText = `${currentAltitude}m`; };
+        window.openZoneSettings = (zid) => {
+            const z = zones.find(i => i.id === zid);
+            if(!z) return;
+            document.getElementById('editing-zone-id').value = zid;
+            document.getElementById('zone-name').value = z.name;
+            document.getElementById('zone-is-confined').checked = z.isConfined;
+            document.getElementById('zone-time-limit').value = z.timeLimit || 60;
+            
+            // 위험 구역 체크 여부에 따라 시간 설정 표시
+            document.getElementById('time-limit-box').classList.toggle('hidden', !z.isConfined);
+            
+            document.getElementById('zoneModal').classList.remove('hidden');
+        };
         
-        // Global Helpers
-        window.openMyInfoModal = () => { document.getElementById('my-name').value = currentUser.name || ''; document.getElementById('myInfoModal').classList.remove('hidden'); };
-        window.saveMyInfo = async () => { const name = document.getElementById('my-name').value; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser.id), { name }); currentUser.name = name; document.getElementById('user-display').innerText = `${name} (${getRoleName(currentUser.role)})`; document.getElementById('myInfoModal').classList.add('hidden'); };
-        window.openChangePwModal = (uid) => { document.getElementById('pw-target-user-id').value = uid; document.getElementById('passwordModal').classList.remove('hidden'); };
-        window.saveNewPassword = async () => { const uid = document.getElementById('pw-target-user-id').value; const newPw = document.getElementById('new-password').value; if(!newPw) return; await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid), { pw: newPw }); document.getElementById('passwordModal').classList.add('hidden'); alert("비번 변경됨"); };
+        // 이벤트: 위험구역 체크박스 변경 시 시간 설정 보이기/숨기기
+        document.getElementById('zone-is-confined').addEventListener('change', (e) => {
+            document.getElementById('time-limit-box').classList.toggle('hidden', !e.target.checked);
+        });
+
+        // [SOS 기능 수정]
+        window.triggerSOS = async () => {
+            if(!currentUser) return alert("로그인 필요");
+            const btn = document.getElementById('btn-sos');
+            const isActive = btn.classList.contains('active');
+            
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'workers', currentUser.id), { isSOS: !isActive });
+            
+            if(!isActive) { 
+                alert("🚨 구조 요청을 전송했습니다!"); 
+                btn.classList.add('active'); 
+            } else { 
+                alert("SOS를 해제했습니다."); 
+                btn.classList.remove('active'); 
+            }
+        };
+
+        window.checkHealthSchedule = (showModal) => {
+            // ... (기존 보건 알림 로직 유지) ...
+            const today = new Date();
+            let hasAlert = false;
+            getDocs(query(getColRef('users'))).then(snap => {
+                let msg = "📢 [보건 알림] 다음 근로자 재검진 1개월 전:\n";
+                snap.forEach(d => {
+                    const u = d.data();
+                    if(u.checkupDate) {
+                        const checkDate = new Date(u.checkupDate);
+                        const nextDate = new Date(checkDate);
+                        nextDate.setFullYear(checkDate.getFullYear() + 1);
+                        const notiDate = new Date(nextDate);
+                        notiDate.setMonth(nextDate.getMonth() - 1);
+                        if(today >= notiDate && today < nextDate) {
+                            msg += `- ${u.name} (검진일: ${u.checkupDate})\n`;
+                            hasAlert = true;
+                        }
+                    }
+                });
+                if(hasAlert && showModal) alert(msg);
+                else if(showModal) alert("검진 임박 대상자가 없습니다.");
+            });
+        };
+
+        // 기타 헬퍼들...
+        function getZoneColor(t) { return t==='danger'?'#ef4444':(t==='boundary'?'#2563eb':'#10b981'); }
+        function getRoleName(r) { return (r==='super_admin'?'최고관리자':(r==='admin'?'현장소장':(r==='safety'?'안전관리자':(r==='health'?'보건관리자':'근로자')))); }
+        function getDistanceFromLatLonInKm(lat1,lon1,lat2,lon2) { var R=6371; var dLat=deg2rad(lat2-lat1); var dLon=deg2rad(lon2-lon1); var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(deg2rad(lat1))*Math.cos(deg2rad(lat2))*Math.sin(dLon/2)*Math.sin(dLon/2); var c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); return R*c; }
+        function deg2rad(d) { return d*(Math.PI/180); }
+        function isPointInPolygon(p, vs) { var x = p[0], y = p[1]; var inside = false; for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) { var xi = vs[i][0], yi = vs[i][1]; var xj = vs[j][0], yj = vs[j][1]; var intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi); if (intersect) inside = !inside; } return inside; }
+        function updateStats() { document.getElementById('stat-total').innerText = activeWorkers.length; }
+        function renderDangerList() { /* ... */ }
+        function playEmergencySound() { /* ... */ }
+        function enableNoSleep() { document.getElementById('no-sleep-video').play().catch(()=>{}); }
+        window.refreshGPS = () => { if(gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId); startGPS(); };
+        window.createNewSite = async () => { await addDoc(getColRef('sites'), {name: document.getElementById('new-site-name').value}); document.getElementById('createSiteModal').classList.add('hidden'); alert('생성됨'); };
+        window.switchSite = (id) => { currentSiteId = id; subscribeData(); };
+        window.openCreateSiteModal = () => document.getElementById('createSiteModal').classList.remove('hidden');
+        window.saveMyInfo = async () => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser.id), {name: document.getElementById('my-name').value}); document.getElementById('myInfoModal').classList.add('hidden'); };
+        window.approveUser = async (uid) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid), { approved: true });
+        window.deleteUser = async (uid) => { if(confirm('삭제?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid)); };
+        window.deleteZone = async (zid) => { if(confirm('삭제?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'zones', zid)); };
         
-        // Sidebar logic
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebar-overlay');
-        document.getElementById('btn-menu-toggle').onclick = () => { sidebar.classList.remove('-translate-x-full'); overlay.classList.remove('hidden'); };
-        const closeSidebar = () => { sidebar.classList.add('-translate-x-full'); overlay.classList.add('hidden'); };
-        document.getElementById('btn-close-sidebar').onclick = closeSidebar;
-        overlay.onclick = closeSidebar;
-        
-        document.getElementById('tab-monitor').onclick = () => { document.getElementById('panel-monitor').classList.remove('hidden'); document.getElementById('panel-users').classList.add('hidden'); document.getElementById('tab-monitor').classList.add('border-b-2','border-blue-500','text-blue-600'); document.getElementById('tab-users').classList.remove('border-b-2','border-blue-500','text-blue-600'); };
-        document.getElementById('tab-users').onclick = () => { document.getElementById('panel-monitor').classList.add('hidden'); document.getElementById('panel-users').classList.remove('hidden'); document.getElementById('tab-users').classList.add('border-b-2','border-blue-500','text-blue-600'); document.getElementById('tab-monitor').classList.remove('border-b-2','border-blue-500','text-blue-600'); };
+        // Modal Openers
+        window.openInfoModal = (uid, job, equip, health, isElderly, assignedArea, personalInfo, checkupDate) => { 
+            document.getElementById('edit-user-id').value = uid; 
+            document.getElementById('edit-job').value = job || '';
+            document.getElementById('edit-equip').value = equip || '';
+            document.getElementById('edit-health-grade').value = health || 'A';
+            document.getElementById('edit-is-elderly').checked = isElderly || false;
+            document.getElementById('edit-assigned-area').value = assignedArea || '';
+            document.getElementById('edit-personal-info').value = personalInfo || '';
+            document.getElementById('edit-checkup-date').value = checkupDate || '';
+            
+            const isSafetyOrHealth = ['super_admin', 'safety', 'health'].includes(currentUser.role);
+            document.getElementById('edit-health-grade').disabled = !isSafetyOrHealth;
+            document.getElementById('edit-checkup-date').disabled = !isSafetyOrHealth;
+            document.getElementById('userInfoModal').classList.remove('hidden'); 
+        };
+        window.saveUserInfo = async () => {
+             const uid = document.getElementById('edit-user-id').value;
+             // ... (입력값 가져오기) ...
+             const job = document.getElementById('edit-job').value;
+             const equip = document.getElementById('edit-equip').value;
+             const healthGrade = document.getElementById('edit-health-grade').value;
+             const isElderly = document.getElementById('edit-is-elderly').checked;
+             const assignedArea = document.getElementById('edit-assigned-area').value;
+             const personalInfo = document.getElementById('edit-personal-info').value;
+             const checkupDate = document.getElementById('edit-checkup-date').value;
+
+             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid), { job, equip, healthGrade, isElderly, assignedArea, personalInfo, checkupDate });
+             try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'workers', uid), { healthGrade, isElderly, assignedArea, personalInfo, checkupDate }); } catch(e) { }
+             document.getElementById('userInfoModal').classList.add('hidden');
+        };
+        window.openMyInfoModal = () => { document.getElementById('my-name').value = currentUser.name; document.getElementById('myInfoModal').classList.remove('hidden'); };
+
+        // Listeners
+        document.getElementById('btn-login').addEventListener('click', window.handleLogin);
+        document.getElementById('btn-signup').addEventListener('click', window.handleSignup);
+        document.getElementById('tab-login').addEventListener('click', () => { document.getElementById('form-login').classList.remove('hidden'); document.getElementById('form-signup').classList.add('hidden'); });
+        document.getElementById('tab-signup').addEventListener('click', () => { document.getElementById('form-login').classList.add('hidden'); document.getElementById('form-signup').classList.remove('hidden'); });
+        document.getElementById('tab-monitor').addEventListener('click', () => { document.getElementById('panel-monitor').classList.remove('hidden'); document.getElementById('panel-users').classList.add('hidden'); });
+        document.getElementById('tab-users').addEventListener('click', () => { document.getElementById('panel-monitor').classList.add('hidden'); document.getElementById('panel-users').classList.remove('hidden'); });
+        document.getElementById('btn-menu-toggle').addEventListener('click', () => { document.getElementById('sidebar').classList.remove('-translate-x-full'); document.getElementById('sidebar-overlay').classList.remove('hidden'); });
+        document.getElementById('btn-close-sidebar').addEventListener('click', () => { document.getElementById('sidebar').classList.add('-translate-x-full'); document.getElementById('sidebar-overlay').classList.add('hidden'); });
+        document.getElementById('btn-logout').addEventListener('click', () => { localStorage.removeItem('savedUser'); location.reload(); });
     </script>
 </body>
 </html>
