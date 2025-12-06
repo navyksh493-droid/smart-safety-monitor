@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v9.51 (Final Fix)</title>
+    <title>스마트 안전 관제 v9.52 (Stable)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -55,9 +55,8 @@
     </style>
 
     <script>
-        // Global Error Handler
+        // 에러 발생 시 알림 (디버깅용)
         window.onerror = function(msg, url, line, col, error) {
-            // alert("오류 발생: " + msg); // 너무 잦은 알림 방지
             console.error(msg);
             return false;
         };
@@ -89,7 +88,7 @@
     <div id="loading-screen" class="fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center">
         <img class="app-logo-img w-24 h-24 mb-4 animate-bounce" alt="Logo">
         <p class="text-gray-500 font-bold">시스템 연결 중...</p>
-        <p id="loading-text" class="text-xs text-gray-400 mt-2">서버 응답 대기 중...</p>
+        <p id="loading-text" class="text-xs text-gray-400 mt-2">서버 리소스 로딩 중...</p>
     </div>
 
     <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-90 hidden">
@@ -97,7 +96,7 @@
             <div class="mb-6 flex flex-col items-center">
                 <img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon">
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">System Admin v9.51</p>
+                <p class="text-sm text-gray-500">System Admin v9.52</p>
             </div>
             
             <div id="pwa-install-area" class="w-full mb-4 hidden">
@@ -124,7 +123,7 @@
                     <label for="auto-login-check" class="text-sm text-gray-600">자동 로그인</label>
                 </div>
 
-                <button id="btn-login" class="w-full bg-blue-800 text-white py-3 rounded font-bold hover:bg-blue-900 transition shadow-lg">로그인 (GPS 자동 실행)</button>
+                <button id="btn-login" onclick="tryLogin()" class="w-full bg-blue-800 text-white py-3 rounded font-bold hover:bg-blue-900 transition shadow-lg">로그인 (GPS 자동 실행)</button>
             </div>
 
             <div id="form-signup" class="space-y-4 hidden w-full">
@@ -145,7 +144,7 @@
                     <option value="health">보건관리자</option>
                     <option value="admin">현장소장</option>
                 </select>
-                <button id="btn-signup" class="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700 transition">가입 신청</button>
+                <button id="btn-signup" onclick="trySignup()" class="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700 transition">가입 신청</button>
             </div>
         </div>
     </div>
@@ -302,7 +301,10 @@
     <div id="zoneModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2000] hidden flex items-center justify-center p-4"><div class="bg-white rounded-lg p-6 w-full max-w-sm"><h3 class="text-lg font-bold mb-4" id="zone-modal-title">구역 저장</h3><input type="hidden" id="editing-zone-id"><input type="text" id="zone-name" placeholder="구역 이름" class="w-full border p-2 rounded mb-3"><div class="flex items-center gap-2 mb-3 bg-red-50 p-2 rounded"><input type="checkbox" id="zone-is-confined" class="w-4 h-4 text-red-600 rounded"><label for="zone-is-confined" class="text-sm font-bold text-red-700">위험 구역 (알림)</label></div><div id="time-limit-box" class="hidden mb-3 ml-2"><label class="text-xs text-gray-600">제한 시간(초): </label><input type="number" id="zone-time-limit" value="10" class="border w-16 text-center rounded p-1"></div><div class="flex gap-2"><button onclick="saveZone()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">저장</button><button onclick="document.getElementById('zoneModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">취소</button></div></div></div>
 
     <script>
-        // 이 부분은 페이지가 뜨자마자 무조건 실행됩니다.
+        // 전역 함수 정의 (버튼 클릭 시 연결될 빈 껍데기)
+        window.tryLogin = function() { alert("시스템 로딩 중입니다. 잠시만 기다려주세요."); };
+        window.trySignup = function() { alert("시스템 로딩 중입니다. 잠시만 기다려주세요."); };
+
         document.addEventListener('DOMContentLoaded', () => {
              // 탭 전환
              const tabLogin = document.getElementById('tab-login');
@@ -331,29 +333,6 @@
                     toggleBtn.innerHTML = type === 'password' ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>';
                 };
              }
-
-             // 로그인 버튼 연결 (안전을 위해 여기서도 한 번 더 시도)
-             const btnLogin = document.getElementById('btn-login');
-             if(btnLogin) {
-                btnLogin.onclick = () => {
-                    if(typeof window.handleLogin === 'function') {
-                        window.handleLogin();
-                    } else {
-                        alert("시스템 로딩 중입니다. 잠시 후 다시 시도해주세요.");
-                    }
-                };
-             }
-
-             const btnSignup = document.getElementById('btn-signup');
-             if(btnSignup) {
-                btnSignup.onclick = () => {
-                    if(typeof window.handleSignup === 'function') {
-                        window.handleSignup();
-                    } else {
-                        alert("시스템 로딩 중입니다.");
-                    }
-                };
-             }
              
              // 로딩 화면 끄기
              setTimeout(() => {
@@ -364,9 +343,9 @@
     </script>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, getDocs, setDoc, addDoc, deleteDoc, onSnapshot, query, where, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getFirestore, collection, doc, getDocs, setDoc, addDoc, deleteDoc, onSnapshot, query, where, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
         const firebaseConfig = {
           apiKey: "AIzaSyCMWQa-O2m8BB0XHzhXlYfdy3smIsgKs0A",
@@ -404,8 +383,9 @@
             if(el) el.innerText = text;
         };
 
-        // Window 전역 객체에 할당 (UI 스크립트에서 부를 수 있게)
-        window.handleLogin = async () => {
+        // 진짜 로그인 함수 (모듈 로드 후 덮어씌움)
+        window.tryLogin = async () => {
+            alert("서버 연결 시도 중..."); 
             const id = document.getElementById('login-id').value;
             const pw = document.getElementById('login-pw').value;
             
@@ -438,15 +418,16 @@
                     localStorage.setItem('savedUser', JSON.stringify(u));
                 }
 
+                alert("로그인 성공!"); 
                 startSession();
 
             } catch (error) {
                 console.error("Login Error:", error);
-                alert("로그인 처리 중 오류 발생:\n" + error.message);
+                alert("로그인 에러: " + error.message);
             }
         };
 
-        window.handleSignup = async () => {
+        window.trySignup = async () => {
             const id = document.getElementById('reg-id').value;
             const name = document.getElementById('reg-name').value;
             const pw = document.getElementById('reg-pw').value;
@@ -669,33 +650,6 @@
              // Load Sites
              loadSitesToSelect('reg-site');
         });
-
-        // Global Window Functions
-        window.startDrawing = (type) => { isDrawing = true; drawType = type; drawingPoints = []; document.getElementById('tool-default').classList.add('hidden'); document.getElementById('tool-drawing').classList.remove('hidden'); alert("지도에 점을 찍으세요."); };
-        window.addDrawingPoint = (latlng) => { drawingPoints.push([latlng.lat, latlng.lng]); L.marker(latlng).addTo(map); };
-        window.finishDrawing = async () => { if(drawingPoints.length < 3) return alert("3개 이상 필요"); const name = prompt("구역 이름:"); if(!name) return; await addDoc(getColRef('zones'), { name, type: drawType, points: JSON.stringify(drawingPoints), siteId: currentSiteId, isConfined: drawType==='danger', minAlt: -10, maxAlt: 100 }); window.cancelDrawing(); };
-        window.cancelDrawing = () => { isDrawing = false; drawingPoints = []; document.getElementById('tool-default').classList.remove('hidden'); document.getElementById('tool-drawing').classList.add('hidden'); };
-        window.refreshGPS = () => { if(gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId); startGPS(); };
-        window.triggerSOS = async () => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'workers', currentUser.id), { isSOS: true }); alert("구조 요청 전송됨"); playEmergencySound(); };
-        window.createNewSite = async () => { const name = document.getElementById('new-site-name').value; await addDoc(getColRef('sites'), { name }); document.getElementById('createSiteModal').classList.add('hidden'); };
-        window.openCreateSiteModal = () => document.getElementById('createSiteModal').classList.remove('hidden');
-        window.switchSite = (id) => { currentSiteId = id; subscribeData(); };
-        window.checkHealthSchedule = (show) => { /* ... */ };
-
-        function updateStats() {
-            const active = activeWorkers.filter(w => w.isVisible).length;
-            const total = activeWorkers.length;
-            const out = activeWorkers.filter(w => !w.isVisible).length;
-            const danger = activeWorkers.filter(w => w.dangerEntryTime || w.isSOS).length;
-            safeSetText('stat-total', total);
-            safeSetText('stat-active', active);
-            safeSetText('stat-out', out);
-            safeSetText('stat-danger', danger);
-            safeSetText('mobile-stat-total', total);
-            safeSetText('mobile-stat-active', active);
-            safeSetText('mobile-stat-out', out);
-            safeSetText('mobile-stat-danger', danger);
-        }
     </script>
 </body>
 </html>
