@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v9.44 (Zone List Fixed)</title>
+    <title>스마트 안전 관제 v9.45 (Pin Drawing Mode)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -118,7 +118,7 @@
             <div class="mb-6 flex flex-col items-center">
                 <img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon">
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">System Admin v9.44 (Zone List Fixed)</p>
+                <p class="text-sm text-gray-500">System Admin v9.45 (Pin Mode)</p>
             </div>
             
             <div id="pwa-install-area" class="w-full mb-4 hidden">
@@ -325,8 +325,10 @@
                         </button>
                     </div>
                     <div id="tool-drawing" class="hidden space-y-2">
-                         <div class="bg-yellow-50 p-2 rounded text-xs text-center border text-yellow-800 font-bold">지도에 점을 찍어주세요 (자동 연결)</div>
-                         <button id="btn-finish-drawing" onclick="finishDrawing()" class="w-full bg-green-600 text-white font-bold py-2 rounded text-sm">완료 (저장)</button>
+                         <div class="bg-yellow-50 p-2 rounded text-xs text-center border text-yellow-800 font-bold">
+                             <i class="fa-solid fa-thumbtack"></i> 지도에 핀을 꽂아주세요<br>(완료 시 자동 연결)
+                         </div>
+                         <button id="btn-finish-drawing" onclick="finishDrawing()" class="w-full bg-green-600 text-white font-bold py-2 rounded text-sm shadow">완료 (영역 생성)</button>
                          <button onclick="cancelDrawing()" class="w-full bg-gray-200 text-gray-600 font-bold py-2 rounded text-sm">취소</button>
                     </div>
                 </div>
@@ -448,9 +450,10 @@
         let map, currentUser = null, currentSiteId = null;
         let zones = [], activeWorkers = [];
         let mapLayers = { zones: [], users: [], temp: [] };
-        // Drawing Variables
+        
+        // [FIX] Drawing Variables
         let isDrawing = false, drawType = null, drawingPoints = [];
-        let currentPolyline = null, currentPolygon = null; // 실시간 미리보기용
+        let drawingMarkers = []; // 핀 마커 저장용
         
         let gpsWatchId = null;
         let isWebMode = true; 
@@ -588,17 +591,12 @@
             map = L.map('map', {zoomControl: false}).setView([37.5665, 126.9780], 16); 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(map);
 
+            // [FIX] Click only adds a marker. No line drawing here.
             map.on('click', (e) => { 
                 if(isDrawing) window.addDrawingPoint(e.latlng); 
             });
             
-            map.on('mousemove', (e) => {
-                if(isDrawing && drawingPoints.length > 0) {
-                    const tempPoints = [...drawingPoints, [e.latlng.lat, e.latlng.lng]];
-                    if(currentPolyline) map.removeLayer(currentPolyline);
-                    currentPolyline = L.polyline(tempPoints, {color: 'gray', dashArray: '5, 5'}).addTo(map);
-                }
-            });
+            // Mousemove listener removed as per request
         }
 
         function getZoneColor(type) {
@@ -653,7 +651,6 @@
                     poly.bindTooltip(z.name);
                     mapLayers.zones.push(poly);
                     
-                    // [수정] 사이드바에 구역 목록 표시 (삭제 버튼 및 이동 기능)
                     if(zoneList) {
                         zoneList.innerHTML += `
                             <div class="flex justify-between p-2 border-b last:border-b-0 text-sm items-center hover:bg-gray-50 transition cursor-pointer" onclick="map.fitBounds([${pts.map(p=>`[${p[0]},${p[1]}]`).join(',')}])">
@@ -825,17 +822,14 @@
 
         window.addDrawingPoint = (latlng) => { 
             drawingPoints.push([latlng.lat, latlng.lng]); 
-            L.circleMarker(latlng, {radius: 4, color: 'black'}).addTo(map); 
-            
-            if(drawingPoints.length > 1) {
-                L.polyline(drawingPoints, {color: 'black', weight: 2}).addTo(map);
-            }
+            // [FIX] Add visual marker for each click
+            const m = L.circleMarker(latlng, {radius: 5, color: '#ef4444', fillColor:'white', fillOpacity:1, weight:2}).addTo(map); 
+            drawingMarkers.push(m);
         };
 
         window.finishDrawing = async () => {
             if(drawingPoints.length < 3) return alert("최소 3개 이상의 점을 찍어야 면을 만들 수 있습니다.");
             
-            // [FIX] 중복 클릭 방지 UI
             const btn = document.getElementById('btn-finish-drawing');
             const originalText = btn.innerText;
             btn.innerText = "저장 중...";
@@ -851,7 +845,6 @@
             const isConfined = drawType === 'danger';
             
             try {
-                // [FIX] 저장 로직 대기(await) 및 현장 ID 확인
                 if(!currentSiteId) throw new Error("현장 정보가 없습니다.");
                 
                 await addDoc(getColRef('zones'), { 
@@ -877,8 +870,11 @@
         window.cancelDrawing = () => { 
             isDrawing = false; 
             drawingPoints = []; 
-            if(currentPolyline) map.removeLayer(currentPolyline); 
-            subscribeData(); // 화면/지도 리셋
+            // Remove temporary markers
+            drawingMarkers.forEach(m => map.removeLayer(m));
+            drawingMarkers = [];
+            
+            subscribeData(); 
             
             document.getElementById('tool-default').classList.remove('hidden');
             document.getElementById('tool-drawing').classList.add('hidden');
