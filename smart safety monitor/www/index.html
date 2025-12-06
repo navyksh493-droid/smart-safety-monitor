@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v9.41 (SOS Fixed)</title>
+    <title>스마트 안전 관제 v9.42 (Drawing Fixed)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -25,7 +25,7 @@
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
         .sos-marker-ring { position: absolute; border-radius: 50%; border: 3px solid #ef4444; width: 100%; height: 100%; animation: pulse-red 1.5s infinite; }
         
-        /* SOS 전체 화면 점멸 애니메이션 (지도는 보이게 투명도 조절) */
+        /* SOS 전체 화면 점멸 애니메이션 */
         @keyframes full-screen-alert {
             0%, 100% { background-color: rgba(255, 0, 0, 0); }
             50% { background-color: rgba(220, 38, 38, 0.25); }
@@ -33,7 +33,7 @@
         .emergency-overlay {
             animation: full-screen-alert 1.0s infinite;
             position: fixed; inset: 0; z-index: 9000; pointer-events: none;
-            display: none; /* 기본 숨김 */
+            display: none;
             box-shadow: inset 0 0 50px rgba(255,0,0,0.5);
             border: 4px solid rgba(255,0,0,0.6);
         }
@@ -118,7 +118,7 @@
             <div class="mb-6 flex flex-col items-center">
                 <img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon">
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">System Admin v9.41 (SOS Fixed)</p>
+                <p class="text-sm text-gray-500">System Admin v9.42 (Drawing Fixed)</p>
             </div>
             
             <div id="pwa-install-area" class="w-full mb-4 hidden">
@@ -149,14 +149,7 @@
 
                 <button id="btn-login" class="w-full bg-blue-800 text-white py-3 rounded font-bold hover:bg-blue-900 transition shadow-lg">로그인 (GPS 자동 실행)</button>
                 
-                <div class="text-xs text-center text-gray-400 mt-2 bg-gray-50 p-2 rounded">
-                    <strong>관리자 계정 정보</strong><br>
-                    <span class="text-red-500">🔴 최고관리자: dark584 / Rufghs0423!!</span><br>
-                    🔵 관리자: admin / 1234<br>
-                    🟡 경비: guard / 1234<br>
-                    🟢 근로자: worker / 1234
                 </div>
-            </div>
 
             <div id="form-signup" class="space-y-4 hidden w-full">
                 <input type="text" id="reg-id" placeholder="아이디" class="w-full border p-3 rounded">
@@ -593,6 +586,11 @@
         function initMap() {
             map = L.map('map', {zoomControl: false}).setView([37.5665, 126.9780], 16); 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(map);
+
+            // [FIX] 지도 생성 후 클릭 이벤트 연결 (그리기 모드 오류 해결)
+            map.on('click', (e) => { 
+                if(isDrawing) window.addDrawingPoint(e.latlng); 
+            });
         }
 
         function subscribeData() {
@@ -623,7 +621,6 @@
                     poly.bindTooltip(z.name);
                     mapLayers.zones.push(poly);
                     
-                    // 구역 목록 추가
                     if(zoneList) {
                         zoneList.innerHTML += `
                             <div class="flex justify-between p-2 border-b text-sm items-center hover:bg-gray-50 transition cursor-pointer" onclick="map.fitBounds([${pts.map(p=>`[${p[0]},${p[1]}]`).join(',')}])">
@@ -652,11 +649,9 @@
                     if(Date.now() - w.lastUpdate > 300000) return; 
                     activeWorkers.push(w);
 
-                    // [SOS 로직 추가]
                     if (w.isSOS) {
                         isAnySOS = true;
                         if (!alertedSOS.has(w.id)) {
-                            // 우측 푸시 알림
                             showToast(`🚨 긴급 구조 요청! - ${w.name} (${getRoleName(w.role)})`, 'danger');
                             alertedSOS.add(w.id);
                             playEmergencySound();
@@ -684,7 +679,6 @@
                           </div>`;
                     }
                     
-                    // SOS 해제 버튼 (팝업 내)
                     if (w.isSOS) {
                         popupContent += `<button onclick="resolveSOS('${w.id}', '${w.name}')" class="mt-1 w-full bg-red-600 text-white text-xs py-1 rounded font-bold animate-pulse hover:bg-red-700">🚨 구조 완료 / SOS 해제</button>`;
                     }
@@ -693,9 +687,6 @@
                     mapLayers.users.push(marker);
                 });
                 
-                // [SOS 전체 화면 점멸 처리]
-                // 관리자: 누군가 SOS면 점멸
-                // 근로자: 본인이 SOS면 점멸
                 const overlay = document.getElementById('emergency-overlay');
                 const isMySOS = activeWorkers.find(w => w.id === currentUser.id && w.isSOS);
                 
@@ -812,7 +803,6 @@
             if(confirm("이 구역을 삭제하시겠습니까?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'zones', zid));
         }
         
-        // [SOS 해제 로직 수정] 권한 체크 강화
         window.resolveSOS = async (targetId, targetName) => {
             const isMine = currentUser.id === targetId;
             const canResolve = ['super_admin', 'admin', 'supervisor'].includes(currentUser.role) || isMine;
@@ -850,7 +840,6 @@
         window.refreshGPS = () => { if(gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId); startGPS(); };
         window.triggerSOS = async () => { 
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'workers', currentUser.id), { isSOS: true }); 
-            // alert("구조 요청 전송됨"); // 토스트로 대체
         };
         window.createNewSite = async () => { 
             const name = document.getElementById('new-site-name').value; 
@@ -1043,8 +1032,7 @@
             location.reload();
         });
 
-        // Map Click for Drawing
-        if(map) map.on('click', (e) => { if(isDrawing) window.addDrawingPoint(e.latlng); });
+        // Map Click handled in initMap now
     </script>
 </body>
 </html>
