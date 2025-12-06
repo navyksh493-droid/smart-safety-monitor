@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v9.42 (Drawing Fixed)</title>
+    <title>스마트 안전 관제 v9.43 (Zone Color Fixed)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -118,7 +118,7 @@
             <div class="mb-6 flex flex-col items-center">
                 <img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon">
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">System Admin v9.42 (Drawing Fixed)</p>
+                <p class="text-sm text-gray-500">System Admin v9.43 (Zone Color Fixed)</p>
             </div>
             
             <div id="pwa-install-area" class="w-full mb-4 hidden">
@@ -148,8 +148,7 @@
                 </div>
 
                 <button id="btn-login" class="w-full bg-blue-800 text-white py-3 rounded font-bold hover:bg-blue-900 transition shadow-lg">로그인 (GPS 자동 실행)</button>
-                
-                </div>
+            </div>
 
             <div id="form-signup" class="space-y-4 hidden w-full">
                 <input type="text" id="reg-id" placeholder="아이디" class="w-full border p-3 rounded">
@@ -326,8 +325,8 @@
                         </button>
                     </div>
                     <div id="tool-drawing" class="hidden space-y-2">
-                         <div class="bg-yellow-50 p-2 rounded text-xs text-center border text-yellow-800 font-bold">그리기 모드 ON</div>
-                         <button onclick="finishDrawing()" class="w-full bg-green-600 text-white font-bold py-2 rounded text-sm">완료</button>
+                         <div class="bg-yellow-50 p-2 rounded text-xs text-center border text-yellow-800 font-bold">지도에 점을 찍어주세요 (자동 연결)</div>
+                         <button onclick="finishDrawing()" class="w-full bg-green-600 text-white font-bold py-2 rounded text-sm">완료 (저장)</button>
                          <button onclick="cancelDrawing()" class="w-full bg-gray-200 text-gray-600 font-bold py-2 rounded text-sm">취소</button>
                     </div>
                 </div>
@@ -449,7 +448,10 @@
         let map, currentUser = null, currentSiteId = null;
         let zones = [], activeWorkers = [];
         let mapLayers = { zones: [], users: [], temp: [] };
-        let isDrawing = false, drawType = null, drawingPoints = [], tempPolyline;
+        // Drawing Variables
+        let isDrawing = false, drawType = null, drawingPoints = [];
+        let currentPolyline = null, currentPolygon = null; // 실시간 미리보기용
+        
         let gpsWatchId = null;
         let isWebMode = true; 
         let audioCtx;
@@ -587,10 +589,31 @@
             map = L.map('map', {zoomControl: false}).setView([37.5665, 126.9780], 16); 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(map);
 
-            // [FIX] 지도 생성 후 클릭 이벤트 연결 (그리기 모드 오류 해결)
+            // [FIX] Drawing Events
             map.on('click', (e) => { 
                 if(isDrawing) window.addDrawingPoint(e.latlng); 
             });
+            
+            map.on('mousemove', (e) => {
+                if(isDrawing && drawingPoints.length > 0) {
+                    const tempPoints = [...drawingPoints, [e.latlng.lat, e.latlng.lng]];
+                    
+                    // 미리보기 선 업데이트
+                    if(currentPolyline) map.removeLayer(currentPolyline);
+                    currentPolyline = L.polyline(tempPoints, {color: 'gray', dashArray: '5, 5'}).addTo(map);
+                }
+            });
+        }
+
+        // [New] Get Color Helper
+        function getZoneColor(type) {
+            if (type === 'boundary') return '#2563eb'; // 파란색 (현장 경계)
+            if (type === 'danger') return '#ef4444';   // 빨간색 (위험)
+            if (type === 'work') return '#f59e0b';     // 노란/주황 (작업)
+            if (type === 'rest') return '#22c55e';     // 초록 (휴게)
+            if (type === 'smoking') return '#6b7280';  // 회색 (흡연)
+            if (type === 'aed') return '#ec4899';      // 핑크 (AED)
+            return '#06b6d4';                          // 하늘색 (기타)
         }
 
         function subscribeData() {
@@ -609,22 +632,29 @@
                     const z = { ...d.data(), id: d.id };
                     const pts = JSON.parse(z.points);
                     
-                    let color = '#2563eb';
-                    if (z.type === 'danger') color = '#ef4444';
-                    else if (z.type === 'work') color = '#f59e0b';
-                    else if (z.type === 'rest') color = '#22c55e';
-                    else if (z.type === 'smoking') color = '#6b7280';
-                    else if (z.type === 'aed') color = '#ec4899';
-                    else if (z.type === 'toilet') color = '#06b6d4';
+                    const color = getZoneColor(z.type);
+                    
+                    // [FIX] Fill Color Logic
+                    // Boundary: 투명도 낮게 (내부가 잘 보이게)
+                    // Danger: 투명도 약간 높게 (경고)
+                    let fillOpacity = 0.2;
+                    if(z.type === 'boundary') fillOpacity = 0.05; 
+                    if(z.type === 'danger') fillOpacity = 0.3;
 
-                    const poly = L.polygon(pts, { color, fillOpacity: 0.1 }).addTo(map);
+                    const poly = L.polygon(pts, { 
+                        color: color, 
+                        fillColor: color, 
+                        fillOpacity: fillOpacity, 
+                        weight: 2 
+                    }).addTo(map);
+                    
                     poly.bindTooltip(z.name);
                     mapLayers.zones.push(poly);
                     
                     if(zoneList) {
                         zoneList.innerHTML += `
                             <div class="flex justify-between p-2 border-b text-sm items-center hover:bg-gray-50 transition cursor-pointer" onclick="map.fitBounds([${pts.map(p=>`[${p[0]},${p[1]}]`).join(',')}])">
-                                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:${color}"></span> ${z.name}</span>
+                                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-sm border" style="background:${color}; opacity:${fillOpacity + 0.4}"></span> ${z.name}</span>
                                 ${(isManager(currentUser.role)) ? 
                                     `<button onclick="event.stopPropagation(); deleteZone('${z.id}')" class="text-red-500 hover:text-red-700 px-2"><i class="fa-solid fa-trash"></i></button>` : ''}
                             </div>
@@ -777,28 +807,58 @@
         window.startDrawing = (type) => {
             if(!isManager(currentUser.role)) return alert("권한이 없습니다.");
             isDrawing = true; drawType = type; drawingPoints = [];
+            
+            // UI 변경
             document.getElementById('tool-default').classList.add('hidden');
             document.getElementById('tool-drawing').classList.remove('hidden');
-            alert("지도에 점을 찍어 구역을 설정하세요.");
+            
+            alert("지도에 점을 찍어주세요.\n완료 시 자동으로 처음 점과 연결되어 구역이 생성됩니다.");
         };
-        window.addDrawingPoint = (latlng) => { drawingPoints.push([latlng.lat, latlng.lng]); L.marker(latlng).addTo(map); };
+
+        window.addDrawingPoint = (latlng) => { 
+            drawingPoints.push([latlng.lat, latlng.lng]); 
+            L.circleMarker(latlng, {radius: 4, color: 'black'}).addTo(map); // 점 표시
+            
+            // 실시간 선 연결
+            if(drawingPoints.length > 1) {
+                L.polyline(drawingPoints, {color: 'black', weight: 2}).addTo(map);
+            }
+        };
+
         window.finishDrawing = async () => {
-            if(drawingPoints.length < 3) return alert("3개 이상 필요");
-            const name = prompt("구역 이름:");
+            if(drawingPoints.length < 3) return alert("최소 3개 이상의 점을 찍어야 면을 만들 수 있습니다.");
+            const name = prompt("구역 이름 (예: A공구, 위험구역1):");
             if(!name) return;
             
             const isConfined = drawType === 'danger';
             
-            await addDoc(getColRef('zones'), { name, type: drawType, points: JSON.stringify(drawingPoints), siteId: currentSiteId, isConfined, minAlt: -10, maxAlt: 100 });
+            await addDoc(getColRef('zones'), { 
+                name, 
+                type: drawType, 
+                points: JSON.stringify(drawingPoints), 
+                siteId: currentSiteId, 
+                isConfined, 
+                minAlt: -10, 
+                maxAlt: 100 
+            });
             window.cancelDrawing();
             alert("구역이 저장되었습니다.");
         };
+
         window.cancelDrawing = () => { 
             isDrawing = false; 
             drawingPoints = []; 
+            if(currentPolyline) map.removeLayer(currentPolyline); // 미리보기 선 삭제
+            
+            // 임시 마커/선들 지우기 (단순화를 위해 맵 전체 리프레시 유도 대신 레이어 관리)
+            // 실제로는 subscribeData가 스냅샷 때마다 레이어를 새로 그리므로, 
+            // 여기서는 UI 상태만 복구하면 됨. (지도에 찍힌 임시 점들은 새로고침 전까지 남을 수 있으니 subscribeData 한번 호출)
+            subscribeData();
+
             document.getElementById('tool-default').classList.remove('hidden');
             document.getElementById('tool-drawing').classList.add('hidden');
         };
+
         window.deleteZone = async (zid) => {
             if(confirm("이 구역을 삭제하시겠습니까?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'zones', zid));
         }
@@ -1031,8 +1091,6 @@
             localStorage.removeItem('savedUser');
             location.reload();
         });
-
-        // Map Click handled in initMap now
     </script>
 </body>
 </html>
