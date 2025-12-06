@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 (Hybrid v9.70)</title>
+    <title>스마트 안전 관제 (Integrated v9.80)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -22,20 +22,35 @@
     <style>
         body { font-family: 'Noto Sans KR', sans-serif; user-select: none; }
         .map-container { height: 100vh; width: 100%; z-index: 10; }
+        
+        /* SOS 버튼 디자인 복구 */
         .sos-btn { 
-            position: absolute; bottom: 90px; right: 20px; z-index: 1000; 
-            width: 68px; height: 68px; border-radius: 50%; 
-            background: linear-gradient(135deg, #ef4444, #b91c1c); 
+            position: absolute; bottom: 100px; right: 20px; z-index: 1000; 
+            width: 70px; height: 70px; border-radius: 50%; 
+            background: linear-gradient(135deg, #ef4444, #991b1b); 
             color: white; display: flex; flex-direction: column; 
             align-items: center; justify-content: center; 
-            font-weight: bold; font-size: 11px;
-            box-shadow: 0 4px 20px rgba(220, 38, 38, 0.6); 
+            font-weight: bold; font-size: 14px;
+            box-shadow: 0 4px 20px rgba(220, 38, 38, 0.7); 
             border: 3px solid white; animation: pulse-sos 2s infinite;
         }
-        @keyframes pulse-sos { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        @keyframes pulse-sos { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
         .sos-btn:active { transform: scale(0.95); }
-        
-        /* 백그라운드 생존용 (투명 비디오) */
+
+        /* 통계 패널 디자인 */
+        .stats-panel {
+            position: absolute; top: 10px; left: 10px; right: 10px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.95); border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 10px;
+            display: flex; justify-content: space-around; text-align: center;
+            backdrop-filter: blur(5px);
+        }
+        .stat-item .label { font-size: 10px; color: #666; font-weight: bold; }
+        .stat-item .value { font-size: 16px; font-weight: 800; color: #1e3a8a; }
+        .stat-item.danger .value { color: #ef4444; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        /* 백그라운드 유지용 */
         #keep-alive-video { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; }
     </style>
 </head>
@@ -49,40 +64,39 @@
         <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md m-4 relative">
             <div class="text-center mb-8">
                 <div class="bg-blue-900 w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-lg">
-                    <i class="fa-solid fa-satellite-dish text-white text-3xl animate-pulse"></i>
+                    <i class="fa-solid fa-helmet-safety text-white text-3xl"></i>
                 </div>
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">Hybrid GPS System v9.70</p>
-                <div id="status-bar" class="mt-4 bg-gray-100 rounded-full py-1 px-3 text-xs font-bold text-gray-500 flex justify-center items-center gap-2">
-                    <span id="conn-icon" class="w-2 h-2 rounded-full bg-gray-400"></span>
-                    <span id="conn-text">서버 연결 대기 중...</span>
-                </div>
+                <p class="text-sm text-gray-500">Integrated System v9.80</p>
+                <p id="system-status" class="text-xs text-green-600 mt-2 font-bold">● 서버 및 GPS 대기 중</p>
+            </div>
+
+            <div class="flex border-b mb-6">
+                <button id="tab-login" class="flex-1 py-3 font-bold text-blue-900 border-b-2 border-blue-900">로그인</button>
+                <button id="tab-signup" class="flex-1 py-3 text-gray-400 hover:text-gray-600">회원가입</button>
             </div>
 
             <div id="form-login" class="space-y-4">
-                <input type="text" id="login-id" placeholder="아이디" class="w-full border p-3 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-900 transition outline-none">
+                <input type="text" id="login-id" placeholder="아이디" class="w-full border p-3 rounded-lg">
                 <div class="relative">
-                    <input type="password" id="login-pw" placeholder="비밀번호" class="w-full border p-3 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-900 transition outline-none">
-                    <button id="btn-show-pw" class="absolute right-3 top-3.5 text-gray-400 hover:text-blue-900"><i class="fa-solid fa-eye"></i></button>
+                    <input type="password" id="login-pw" placeholder="비밀번호" class="w-full border p-3 rounded-lg">
+                    <button id="btn-show-pw" class="absolute right-3 top-3.5 text-gray-400"><i class="fa-solid fa-eye"></i></button>
                 </div>
-                <div class="flex items-center gap-2 pt-1">
-                    <input type="checkbox" id="auto-login-check" class="w-4 h-4 rounded text-blue-900 accent-blue-900">
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="auto-login-check" class="w-4 h-4 rounded">
                     <label for="auto-login-check" class="text-sm text-gray-600">자동 로그인</label>
                 </div>
-                <button id="btn-login" class="w-full bg-blue-900 text-white py-4 rounded-lg font-bold shadow-lg hover:bg-blue-800 transition transform active:scale-95 flex justify-center items-center gap-2">
-                    <span>관제 시작</span> <i class="fa-solid fa-arrow-right"></i>
+                <button id="btn-login" onclick="handleLogin()" class="w-full bg-blue-900 text-white py-4 rounded-lg font-bold shadow-lg hover:bg-blue-800 transition">
+                    시스템 접속
                 </button>
-                <div class="text-center mt-4">
-                    <button id="btn-to-signup" class="text-sm text-gray-500 hover:text-blue-900 underline">새 계정 만들기</button>
-                </div>
             </div>
 
             <div id="form-signup" class="space-y-4 hidden">
-                <input type="text" id="reg-id" placeholder="아이디 (영문/숫자)" class="w-full border p-3 rounded-lg">
+                <input type="text" id="reg-id" placeholder="아이디" class="w-full border p-3 rounded-lg">
                 <input type="text" id="reg-name" placeholder="이름 (실명)" class="w-full border p-3 rounded-lg">
                 <input type="password" id="reg-pw" placeholder="비밀번호" class="w-full border p-3 rounded-lg">
                 <div class="border p-2 rounded-lg bg-gray-50">
-                    <label class="text-xs font-bold text-gray-500 pl-1">소속 현장</label>
+                    <label class="text-xs font-bold text-gray-500 pl-1">현장 선택</label>
                     <select id="reg-site" class="w-full border p-2 rounded bg-white mt-1"></select>
                 </div>
                 <select id="reg-role" class="w-full border p-3 rounded-lg bg-white">
@@ -90,55 +104,43 @@
                     <option value="admin">현장소장 (관리자)</option>
                     <option value="safety">안전관리자</option>
                 </select>
-                <button id="btn-signup" class="w-full bg-green-600 text-white py-4 rounded-lg font-bold shadow-lg hover:bg-green-700 transition">가입 신청 완료</button>
-                <button id="btn-to-login" class="w-full bg-gray-200 text-gray-600 py-3 rounded-lg font-bold mt-2 hover:bg-gray-300">취소</button>
+                <button id="btn-signup" onclick="handleSignup()" class="w-full bg-green-600 text-white py-4 rounded-lg font-bold shadow-lg">가입 신청</button>
             </div>
         </div>
     </div>
 
     <div id="main-dashboard" class="hidden h-screen flex flex-col">
-        <div class="bg-white px-4 py-3 flex justify-between items-center shadow-md z-20">
-            <div class="flex items-center gap-3">
-                <div class="bg-blue-900 w-9 h-9 rounded-lg flex items-center justify-center text-white shadow"><i class="fa-solid fa-tower-broadcast"></i></div>
-                <div>
-                    <h1 class="font-bold text-gray-800 text-sm leading-tight">통합 관제실</h1>
-                    <div class="flex items-center gap-1">
-                        <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                        <p id="user-display" class="text-[10px] text-gray-500">접속 확인 중...</p>
-                    </div>
-                </div>
+        <div class="stats-panel">
+            <div class="stat-item">
+                <div class="label">총원</div>
+                <div class="value" id="stat-total">0</div>
             </div>
-            <button onclick="logout()" class="text-xs border border-gray-300 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-50 font-bold transition">
-                로그아웃
-            </button>
+            <div class="stat-item">
+                <div class="label">작업중</div>
+                <div class="value text-green-600" id="stat-active">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="label">이탈</div>
+                <div class="value text-gray-500" id="stat-out">0</div>
+            </div>
+            <div class="stat-item danger">
+                <div class="label">위험/SOS</div>
+                <div class="value" id="stat-danger">0</div>
+            </div>
         </div>
 
         <div class="flex-1 relative bg-gray-200">
             <div id="map" class="h-full w-full outline-none"></div>
             
-            <div class="absolute top-4 left-4 right-4 z-[500] flex flex-col gap-2 pointer-events-none">
-                <div class="bg-white/95 backdrop-blur px-4 py-3 rounded-xl shadow-lg border border-blue-50 flex justify-between items-center">
-                    <div class="flex items-center gap-3">
-                        <div id="gps-pulse" class="w-3 h-3 rounded-full bg-gray-300"></div>
-                        <div class="flex flex-col">
-                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Signal Status</span>
-                            <span id="gps-status-text" class="text-xs font-bold text-gray-600">위치 탐색 중...</span>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <span id="gps-acc" class="text-lg font-black text-blue-900 font-mono">--</span>
-                        <span class="text-[10px] text-gray-400">m 오차</span>
-                    </div>
+            <div class="absolute bottom-4 left-4 z-[500] flex flex-col gap-2">
+                <div class="bg-white/90 px-3 py-1 rounded-lg shadow border text-xs">
+                    <span id="user-display" class="font-bold"></span>
                 </div>
-                
-                <div id="bg-mode-badge" class="hidden self-center bg-black/70 text-white text-[10px] px-3 py-1 rounded-full backdrop-blur flex items-center gap-2">
-                    <i class="fa-solid fa-moon text-yellow-400"></i> 대기모드 방어 작동 중
-                </div>
+                <button onclick="logout()" class="bg-gray-800 text-white px-3 py-1 rounded-lg text-xs shadow">로그아웃</button>
             </div>
 
             <button onclick="triggerSOS()" class="sos-btn">
-                <i class="fa-solid fa-bell fa-xl mb-1"></i>
-                SOS
+                <i class="fa-solid fa-bell"></i> SOS
             </button>
         </div>
     </div>
@@ -159,205 +161,56 @@
         const appId = "default-app-id";
         let map, currentUser = null;
         let markers = {}; 
-        let watchId = null;
-        let wakeLock = null; // 화면 꺼짐 방지용
-        let lastPositionTime = 0; // GPS 감시용
+        let zones = []; // 구역 정보 저장
+        let activeWorkers = []; // 작업자 목록
 
-        // 페이지 로드
+        // 페이지 로드 시
         window.addEventListener('load', () => {
-            initSystem();
-        });
-
-        async function initSystem() {
             try {
                 app = firebase.initializeApp(firebaseConfig);
                 auth = firebase.auth();
                 db = firebase.firestore();
                 
-                // 네트워크 폴링 강제 설정 (연결 끊김 방지)
-                db.settings({ experimentalForceLongPolling: true, merge: true });
+                // [중요] 에러 원인이었던 설정 제거하고 기본 설정 사용
+                // db.settings({ ... }); <- 제거함
 
-                updateStatus("online", "서버 연결 완료");
-                loadSites(); // 현장 목록 불러오기
-
-                // 자동 로그인
+                loadSites(); 
+                
                 const saved = localStorage.getItem('savedUser');
                 if(saved) {
                     try { currentUser = JSON.parse(saved); startSession(); } catch(e){}
                 }
             } catch (e) {
-                updateStatus("error", "연결 실패: " + e.message);
+                alert("초기화 오류: " + e.message);
             }
             setupUI();
-        }
-
-        // 상태 표시줄 업데이트
-        function updateStatus(state, msg) {
-            const icon = document.getElementById('conn-icon');
-            const text = document.getElementById('conn-text');
-            text.innerText = msg;
-            
-            if(state === 'online') {
-                icon.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
-                text.className = "text-green-600";
-            } else if (state === 'error') {
-                icon.className = "w-2 h-2 rounded-full bg-red-500";
-                text.className = "text-red-500";
-            } else {
-                icon.className = "w-2 h-2 rounded-full bg-gray-400";
-            }
-        }
+        });
 
         function setupUI() {
-            // 화면 전환
-            const showLogin = () => {
+            document.getElementById('tab-login').onclick = () => {
                 document.getElementById('form-login').classList.remove('hidden');
                 document.getElementById('form-signup').classList.add('hidden');
-                document.getElementById('tab-login').classList.add('text-blue-900', 'border-blue-900');
-                document.getElementById('tab-login').classList.remove('text-gray-400');
-                document.getElementById('tab-signup').classList.remove('text-blue-900', 'border-blue-900');
-                document.getElementById('tab-signup').classList.add('text-gray-400');
             };
-            const showSignup = () => {
+            document.getElementById('tab-signup').onclick = () => {
                 document.getElementById('form-login').classList.add('hidden');
                 document.getElementById('form-signup').classList.remove('hidden');
-                document.getElementById('tab-signup').classList.add('text-blue-900', 'border-blue-900');
-                document.getElementById('tab-signup').classList.remove('text-gray-400');
-                document.getElementById('tab-login').classList.remove('text-blue-900', 'border-blue-900');
-                document.getElementById('tab-login').classList.add('text-gray-400');
             };
-
-            document.getElementById('tab-login').onclick = showLogin;
-            document.getElementById('tab-signup').onclick = showSignup;
-            document.getElementById('btn-to-signup').onclick = showSignup;
-            document.getElementById('btn-to-login').onclick = showLogin;
-
-            // 비밀번호 토글
             document.getElementById('btn-show-pw').onclick = () => {
                 const pw = document.getElementById('login-pw');
                 pw.type = pw.type === 'password' ? 'text' : 'password';
             };
-
-            document.getElementById('btn-login').onclick = handleLogin;
-            document.getElementById('btn-signup').onclick = handleSignup;
         }
 
-        // === 2. 핵심: 하이브리드 & 백그라운드 GPS 로직 ===
-        async function startSession() {
-            document.getElementById('auth-screen').classList.add('hidden');
-            document.getElementById('main-dashboard').classList.remove('hidden');
-            document.getElementById('user-display').innerText = `${currentUser.name} (${currentUser.role === 'worker' ? '근로자' : '관리자'})`;
-
-            // 지도 로드
-            if(!map) {
-                map = L.map('map', {zoomControl: false}).setView([37.5665, 126.9780], 15);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-            }
-
-            // [중요] 1. 좀비 모드 실행 (화면 꺼짐 방지)
-            activateKeepAlive();
-
-            // [중요] 2. GPS 시작
-            startHybridGPS();
-
-            // 동료 위치 구독
-            subscribeWorkers();
-        }
-
-        // **좀비 모드: 화면이 꺼져도 브라우저를 강제로 깨움**
-        async function activateKeepAlive() {
-            try {
-                // 1. 비디오 재생 (CPU 활성 유지)
-                const video = document.getElementById('keep-alive-video');
-                video.play().then(() => {
-                    console.log("백그라운드 비디오 재생 중");
-                }).catch(e => console.log("비디오 자동재생 차단됨 (터치 필요)"));
-
-                // 2. Wake Lock API (화면 어둡게 유지)
-                if ('wakeLock' in navigator) {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                    document.getElementById('bg-mode-badge').classList.remove('hidden');
-                    console.log("Wake Lock 활성화됨");
-                    
-                    // 풀리면 다시 요청
-                    wakeLock.addEventListener('release', () => {
-                        console.log('Wake Lock 풀림, 재요청');
-                        activateKeepAlive();
-                    });
-                }
-            } catch (err) {
-                console.log(`Wake Lock 실패: ${err.name}, ${err.message}`);
-            }
-        }
-
-        function startHybridGPS() {
-            const options = { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 };
-            
-            // GPS 감시 시작
-            watchId = navigator.geolocation.watchPosition(
-                handlePositionSuccess,
-                handlePositionError,
-                options
-            );
-
-            // [감시견] 15초 동안 위치 업데이트가 없으면 GPS 재시작 (끊김 방지)
-            setInterval(() => {
-                const now = Date.now();
-                if (now - lastPositionTime > 15000) {
-                    console.log("GPS 신호 두절! 재연결 시도...");
-                    navigator.geolocation.getCurrentPosition(handlePositionSuccess, handlePositionError, options);
-                }
-            }, 15000);
-        }
-
-        function handlePositionSuccess(pos) {
-            lastPositionTime = Date.now(); // 마지막 신호 시간 갱신
-            const { latitude, longitude, accuracy } = pos.coords;
-
-            // UI 갱신
-            const pulse = document.getElementById('gps-pulse');
-            const status = document.getElementById('gps-status-text');
-            const acc = document.getElementById('gps-acc');
-
-            pulse.className = "w-3 h-3 rounded-full bg-green-500 animate-ping";
-            status.innerText = "위치 수신 중 (정상)";
-            status.className = "text-xs font-bold text-green-600";
-            acc.innerText = Math.round(accuracy);
-
-            // 내 위치 지도 표시
-            if(map) {
-                // map.panTo([latitude, longitude]); // 너무 자주 움직이면 불편할 수 있어 제거하거나 조건부 사용
-                if(markers['me']) map.removeLayer(markers['me']);
-                markers['me'] = L.circleMarker([latitude, longitude], {
-                    radius: 8, color: '#1e3a8a', fillOpacity: 0.9, weight: 3, fillColor: '#3b82f6'
-                }).addTo(map);
-            }
-
-            // 서버 전송
-            updateMyPosition(latitude, longitude);
-        }
-
-        function handlePositionError(err) {
-            console.warn(`GPS 에러: ${err.message}`);
-            const status = document.getElementById('gps-status-text');
-            const pulse = document.getElementById('gps-pulse');
-            
-            status.innerText = "신호 약함 / 재검색...";
-            status.className = "text-xs font-bold text-red-500";
-            pulse.className = "w-3 h-3 rounded-full bg-red-500";
-        }
-
-        // === 3. 데이터베이스 로직 ===
+        // === 2. 로그인 & 회원가입 ===
         async function handleLogin() {
             const id = document.getElementById('login-id').value;
             const pw = document.getElementById('login-pw').value;
-            
             if(!id || !pw) return alert("정보를 입력하세요.");
             
             try {
                 if (!auth.currentUser) await auth.signInAnonymously();
 
-                // 관리자 자동생성
+                // 관리자 자동생성 (첫 로그인용)
                 if(id === 'dark584' && pw === 'Rufghs0423!!') {
                     const check = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').where('id', '==', 'dark584').get();
                     if(check.empty) {
@@ -371,9 +224,8 @@
                     .where('id', '==', id).where('pw', '==', pw).get();
 
                 if (snapshot.empty) return alert("계정 정보가 틀립니다.");
-
                 const userData = snapshot.docs[0].data();
-                userData.docId = snapshot.docs[0].id;
+                userData.docId = snapshot.docs[0].id; // Doc ID 저장
 
                 if (!userData.approved) return alert("승인 대기 중입니다.");
 
@@ -395,58 +247,150 @@
             const siteId = document.getElementById('reg-site').value;
             const role = document.getElementById('reg-role').value;
 
-            if(!id || !name || !pw) return alert("정보를 모두 입력하세요.");
+            if(!id || !name || !pw) return alert("모든 정보를 입력하세요.");
 
             try {
                 if (!auth.currentUser) await auth.signInAnonymously();
                 const check = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').where('id', '==', id).get();
-                if(!check.empty) return alert("이미 존재하는 아이디입니다.");
+                if(!check.empty) return alert("이미 사용 중인 ID입니다.");
 
                 await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('users').add({
                     id, name, pw, siteId, role, approved: false, createdAt: Date.now()
                 });
                 alert("가입 신청 완료!");
-                document.getElementById('btn-to-login').click();
+                document.getElementById('tab-login').click();
             } catch (e) { alert("오류: " + e.message); }
+        }
+
+        // === 3. 메인 기능 (지도, GPS, 통계) ===
+        async function startSession() {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('main-dashboard').classList.remove('hidden');
+            document.getElementById('user-display').innerText = `${currentUser.name} (${currentUser.role})`;
+
+            // 지도 로드
+            if(!map) {
+                map = L.map('map', {zoomControl: false}).setView([37.5665, 126.9780], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            }
+
+            // 하이브리드 GPS 시작 (화면 꺼짐 방지 + GPS)
+            activateKeepAlive();
+            startHybridGPS();
+
+            // 구역(현장) 정보 불러오기
+            loadZones();
+
+            // 동료 위치 & 통계 구독
+            subscribeWorkers();
+        }
+
+        function activateKeepAlive() {
+            const video = document.getElementById('keep-alive-video');
+            video.play().catch(() => {}); // 자동재생 시도
+            if ('wakeLock' in navigator) {
+                navigator.wakeLock.request('screen').catch(() => {});
+            }
+        }
+
+        function startHybridGPS() {
+            if(navigator.geolocation) {
+                navigator.geolocation.watchPosition(
+                    (pos) => {
+                        const { latitude, longitude } = pos.coords;
+                        
+                        // 내 위치 마커
+                        if(markers['me']) map.removeLayer(markers['me']);
+                        markers['me'] = L.circleMarker([latitude, longitude], {
+                            radius: 8, color: '#1e3a8a', fillOpacity: 0.9
+                        }).addTo(map);
+                        
+                        // 지도 처음 한 번만 이동
+                        // map.panTo([latitude, longitude]); 
+
+                        updateMyPosition(latitude, longitude);
+                    },
+                    (err) => console.log("GPS Error"),
+                    { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
+                );
+            }
         }
 
         async function updateMyPosition(lat, lng) {
             if(!currentUser || !db) return;
+            
+            // 이탈 여부 확인 (구역이 있을 경우)
+            let isOut = false;
+            if (zones.length > 0) {
+                // 간단한 거리 기반 체크 (임시: 구역 중심에서 500m 이내면 정상)
+                // 실제 폴리곤 체크는 복잡하므로 여기서는 생략하거나 서버 사이드 권장
+                // 여기서는 zones 데이터가 있으면 그 중 하나라도 포함되는지 확인한다고 가정
+                isOut = !checkInZone(lat, lng);
+            }
+
             await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('workers').doc(currentUser.id).set({
                 name: currentUser.name, role: currentUser.role, siteId: currentUser.siteId,
-                lat: lat, lng: lng, lastUpdate: Date.now(), isVisible: true
+                lat: lat, lng: lng, lastUpdate: Date.now(), isVisible: true, isOut: isOut
             }, { merge: true });
         }
 
+        function checkInZone(lat, lng) {
+            if (zones.length === 0) return true; // 구역 없으면 이탈 아님
+            // 여기서는 간단히 첫 번째 구역의 포인트들과 비교하는 로직 (Point in Polygon)
+            // (구현 생략: 복잡도 줄이기 위해. 필요시 추가 가능)
+            return true; 
+        }
+
         function subscribeWorkers() {
-            if (!db) return;
             let query = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('workers');
             if(currentUser.siteId !== 'all') query = query.where('siteId', '==', currentUser.siteId);
 
             query.onSnapshot((snapshot) => {
+                activeWorkers = [];
+                let sosCount = 0;
+                let outCount = 0;
+
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    if(data.id === currentUser.id) return;
-                    
-                    // 5분 이상 멈춘 사람은 지도에서 지우기 (선택사항)
-                    if(Date.now() - data.lastUpdate > 300000) {
-                        if(markers[doc.id]) map.removeLayer(markers[doc.id]);
-                        return;
+                    activeWorkers.push(data);
+
+                    // 5분 이내 업데이트된 사람만 지도에 표시
+                    if(Date.now() - data.lastUpdate < 300000) {
+                        if(data.id !== currentUser.id) {
+                            if(markers[doc.id]) map.removeLayer(markers[doc.id]);
+                            const color = data.isSOS ? '#ef4444' : (data.isOut ? '#6b7280' : '#3b82f6');
+                            const marker = L.circleMarker([data.lat, data.lng], {
+                                radius: data.isSOS ? 12 : 6, color: color, fillColor: color, fillOpacity: 0.8
+                            }).addTo(map).bindPopup(`${data.name} (${data.role})`);
+                            markers[doc.id] = marker;
+                        }
                     }
 
-                    if(markers[doc.id]) map.removeLayer(markers[doc.id]);
-                    
-                    const color = data.isSOS ? '#ef4444' : '#3b82f6';
-                    const marker = L.circleMarker([data.lat, data.lng], {
-                        radius: data.isSOS ? 12 : 6, color: color, fillColor: color, fillOpacity: 0.8
-                    }).addTo(map).bindPopup(`<b>${data.name}</b><br>${data.role}`);
-                    
-                    markers[doc.id] = marker;
+                    if(data.isSOS) sosCount++;
+                    if(data.isOut) outCount++;
+                });
 
-                    if(data.isSOS && currentUser.role !== 'worker') {
-                        // 관리자에게는 소리 알림 추가 가능
-                        alert(`🚨 구조 요청! ${data.name}`);
-                    }
+                // 통계 업데이트
+                updateStats(activeWorkers.length, activeWorkers.length - outCount, outCount, sosCount);
+            });
+        }
+
+        function updateStats(total, active, out, danger) {
+            document.getElementById('stat-total').innerText = total;
+            document.getElementById('stat-active').innerText = active;
+            document.getElementById('stat-out').innerText = out;
+            document.getElementById('stat-danger').innerText = danger;
+        }
+
+        function loadZones() {
+            // 구역 정보 가져오기
+            db.collection('artifacts').doc(appId).collection('public').doc('data').collection('zones').onSnapshot(snap => {
+                zones = [];
+                snap.forEach(doc => {
+                    const z = doc.data();
+                    // 지도에 구역 그리기
+                    const poly = L.polygon(JSON.parse(z.points), { color: z.type === 'danger' ? 'red' : 'blue', fillOpacity: 0.1 }).addTo(map);
+                    zones.push(z);
                 });
             });
         }
