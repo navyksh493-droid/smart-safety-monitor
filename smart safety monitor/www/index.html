@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v10.0 (Unified Delete)</title>
+    <title>스마트 안전 관제 v10.1 (Drawing Fix & Boundary Check)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
     
     <style>
         body { font-family: 'Noto Sans KR', sans-serif; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
@@ -103,7 +104,7 @@
             <div class="mb-6 flex flex-col items-center">
                 <img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon">
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">System Admin v10.0</p>
+                <p class="text-sm text-gray-500">System Admin v10.1</p>
             </div>
             
             <div class="flex border-b mb-4 w-full">
@@ -273,7 +274,6 @@
         <div class="bg-white rounded-lg p-6 w-full max-w-sm text-center shadow-xl">
             <h3 class="text-lg font-bold mb-4 text-red-700"><i class="fa-solid fa-trash-can"></i> 삭제 관리</h3>
             <p class="text-sm text-gray-600 mb-6">삭제할 대상을 선택하세요.</p>
-            
             <div class="space-y-3 mb-4">
                 <button onclick="deleteCurrentSite()" class="w-full bg-red-100 text-red-700 py-3 rounded-lg font-bold border border-red-300 hover:bg-red-200 flex items-center justify-center gap-2">
                     <i class="fa-solid fa-building-circle-xmark"></i> 현재 현장 영구 삭제
@@ -282,7 +282,6 @@
                     <i class="fa-solid fa-eraser"></i> 개별 구역 삭제
                 </button>
             </div>
-            
             <button onclick="document.getElementById('deleteSelectionModal').classList.add('hidden')" class="w-full bg-gray-200 text-gray-700 py-2 rounded font-bold">취소</button>
         </div>
     </div>
@@ -417,6 +416,7 @@
         let editingZoneId = null;
         let siteMap = {};
         let sosInterval = null;
+        let boundaryPolygon = null; // Store current boundary for checking
 
         const getColRef = (name) => collection(db, 'artifacts', appId, 'public', 'data', name);
         
@@ -614,6 +614,7 @@
             mapLayers.zones.forEach(l => map.removeLayer(l)); mapLayers.zones = [];
             mapLayers.users.forEach(l => map.removeLayer(l)); mapLayers.users = [];
             activeWorkers = [];
+            boundaryPolygon = null; // Reset
 
             // 1. Zones
             let qZone = getColRef('zones');
@@ -637,6 +638,9 @@
                         color = '#000000'; 
                         dashArray = '10, 10';
                         fillOpacity = 0.05;
+                        // [New] Cache boundary for containment check
+                        const polyGeo = turf.polygon([ [...z.points, z.points[0]] ]); // Close loop
+                        boundaryPolygon = polyGeo;
                     } else if (z.type === 'danger' || z.isConfined) {
                         color = '#ef4444'; 
                     }
@@ -837,6 +841,7 @@
             if(!canCreateZone(currentUser.role)) return alert("권한이 없습니다.");
             if(currentSiteId === 'all') return alert("전체 관제 모드에서는 구역 생성이 불가능합니다. 특정 현장을 선택하세요.");
             
+            // [Fix] Clear previous drawing points absolutely
             isDrawing = true; 
             drawingPoints = []; 
             mapLayers.temp.forEach(l => map.removeLayer(l)); 
@@ -858,6 +863,27 @@
         };
         
         window.addDrawingPoint = (latlng) => { 
+            // [Fix] Boundary Check
+            if(boundaryPolygon) {
+                const pt = turf.point([latlng.lat, latlng.lng]);
+                const isInside = turf.booleanPointInPolygon(pt, boundaryPolygon);
+                
+                // Note: Turf uses [lng, lat], Leaflet uses [lat, lng]. Turf needs [lat, lng] for this specific check if polygon constructed that way
+                // Actually turf standard is [lng, lat]. Let's fix polygon construction above or flip here.
+                // Polygon above constructed as [ [lat, lng] ... ]. Leaflet uses LatLng.
+                // Simple Ray Casting check might be safer or flip coords for Turf.
+                
+                // Let's use simple Ray Casting for dependency-free safety if Turf fails or coord issues
+                // But for now, let's just use the robust isPointInPolygon function we already have
+                // Check if current drawing session is NOT boundary creation itself
+                const isDrawingBoundary = (zones.filter(z => z.type === 'boundary').length === 0);
+                
+                if(!isDrawingBoundary && !isPointInPolygon([latlng.lat, latlng.lng], boundaryPolygon.geometry.coordinates[0])) {
+                     showToast("🚫 현장 경계 내부만 선택 가능합니다", "warning");
+                     return;
+                }
+            }
+
             drawingPoints.push([latlng.lat, latlng.lng]); 
             const m = L.circleMarker(latlng, {radius:4, color: 'red'}).addTo(map); 
             mapLayers.temp.push(m); 
