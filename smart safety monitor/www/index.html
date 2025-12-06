@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v9.49 (Fixed)</title>
+    <title>스마트 안전 관제 v9.50 (Final)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -23,8 +23,6 @@
         
         /* 애니메이션 */
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
-        
-        .sos-marker-ring { position: absolute; border-radius: 50%; border: 3px solid #ef4444; width: 100%; height: 100%; animation: pulse-red 1.5s infinite; }
         
         .sos-btn { position: absolute; bottom: 100px; right: 20px; z-index: 1000; width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; font-weight: bold; font-size: 12px; box-shadow: 0 4px 15px rgba(220, 38, 38, 0.5); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s; border: 3px solid white; }
         .sos-btn:active { transform: scale(0.95); }
@@ -59,7 +57,7 @@
     <script>
         // Global Error Handler
         window.onerror = function(msg, url, line, col, error) {
-            console.error("오류 발생:", msg, line);
+            alert("오류 발생: " + msg);
             return false;
         };
 
@@ -98,7 +96,7 @@
             <div class="mb-6 flex flex-col items-center">
                 <img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon">
                 <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">System Admin v9.49</p>
+                <p class="text-sm text-gray-500">System Admin v9.50</p>
             </div>
             
             <div id="pwa-install-area" class="w-full mb-4 hidden">
@@ -344,12 +342,14 @@
         };
 
         window.handleLogin = async () => {
+            alert("로그인 버튼 클릭됨! 서버에 연결 시도 중..."); // 디버그용 알림 추가
             const id = document.getElementById('login-id').value;
             const pw = document.getElementById('login-pw').value;
             
             try {
                 if (!auth.currentUser) await signInAnonymously(auth);
 
+                // 최고 관리자 계정 생성 (없으면)
                 if(id === 'dark584' && pw === 'Rufghs0423!!') {
                     const q = query(getColRef('users'), where('id', '==', 'dark584'));
                     const s = await getDocs(q);
@@ -362,12 +362,12 @@
                 const snap = await getDocs(q);
                 
                 if(snap.empty) {
-                    alert("정보가 일치하지 않습니다.");
+                    alert("정보가 일치하지 않습니다. 아이디/비번을 확인하세요.");
                     return;
                 }
                 
                 const u = { ...snap.docs[0].data(), docId: snap.docs[0].id };
-                if(!u.approved) return alert("승인 대기 중입니다.");
+                if(!u.approved) return alert("승인 대기 중입니다. 관리자 승인을 기다려주세요.");
 
                 currentUser = u;
                 currentSiteId = u.siteId;
@@ -376,11 +376,12 @@
                     localStorage.setItem('savedUser', JSON.stringify(u));
                 }
 
+                alert("로그인 성공! 대시보드로 이동합니다."); // 성공 알림 추가
                 startSession();
 
             } catch (error) {
                 console.error("Login Error:", error);
-                alert("로그인 오류: " + error.message);
+                alert("로그인 처리 중 오류 발생:\n" + error.message);
             }
         };
 
@@ -400,7 +401,7 @@
                 if(!(await getDocs(q)).empty) return alert("이미 존재하는 ID입니다.");
 
                 await addDoc(getColRef('users'), { id, name, pw, role, siteId, approved: false });
-                alert("가입 신청되었습니다.");
+                alert("가입 신청되었습니다. 관리자 승인 후 로그인하세요.");
                 document.getElementById('tab-login').click();
             } catch (e) {
                 alert("가입 신청 실패: " + e.message);
@@ -594,7 +595,7 @@
             } catch(e) { console.log("Site load deferred"); }
         }
 
-        // --- SAFE INITIALIZATION (FIXED HERE) ---
+        // --- SAFE INITIALIZATION (FIXED WITH PASSWORD TOGGLE & DEBUG) ---
         window.addEventListener('DOMContentLoaded', async () => {
              if(window.Capacitor) isWebMode = false;
              
@@ -610,6 +611,17 @@
              
              const btnSignup = document.getElementById('btn-signup');
              if(btnSignup) btnSignup.onclick = window.handleSignup;
+
+             // [FIX] Password Toggle Logic Added Here
+             const toggleBtn = document.getElementById('toggle-pw-visibility');
+             const pwInput = document.getElementById('login-pw');
+             if(toggleBtn && pwInput) {
+                toggleBtn.onclick = () => {
+                    const type = pwInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    pwInput.setAttribute('type', type);
+                    toggleBtn.innerHTML = type === 'password' ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>';
+                };
+             }
              
              const tabLogin = document.getElementById('tab-login');
              if(tabLogin) tabLogin.onclick = () => {
