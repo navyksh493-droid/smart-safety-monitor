@@ -827,6 +827,7 @@
             drawingMarkers.push(m);
         };
 
+        // ▼▼▼ [수정된 함수] ▼▼▼
         window.finishDrawing = async () => {
             if(drawingPoints.length < 3) return alert("최소 3개 이상의 점을 찍어야 면을 만들 수 있습니다.");
             
@@ -844,14 +845,18 @@
             
             const isConfined = drawType === 'danger';
             
+            // 현장 정보 확인 및 기본값 처리
+            let saveSiteId = currentSiteId;
+            if (!saveSiteId || saveSiteId === 'all') {
+                saveSiteId = 'default_site'; 
+            }
+
             try {
-                if(!currentSiteId) throw new Error("현장 정보가 없습니다.");
-                
                 await addDoc(getColRef('zones'), { 
                     name, 
                     type: drawType, 
                     points: JSON.stringify(drawingPoints), 
-                    siteId: currentSiteId, 
+                    siteId: saveSiteId, // 보정된 ID 사용
                     isConfined, 
                     minAlt: -10, 
                     maxAlt: 100 
@@ -866,6 +871,7 @@
                 btn.disabled = false;
             }
         };
+        // ▲▲▲ [수정 끝] ▲▲▲
 
         window.cancelDrawing = () => { 
             isDrawing = false; 
