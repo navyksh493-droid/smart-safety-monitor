@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v11.0 (Health & Role Security)</title>
+    <title>스마트 안전 관제 v11.4 (Integrated Final)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -22,9 +22,26 @@
         body { font-family: 'Noto Sans KR', sans-serif; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
         .map-container { height: 100vh; width: 100%; z-index: 10; }
         
+        /* SOS & Danger Flash Animation */
         #sos-overlay { pointer-events: none; z-index: 9998; mix-blend-mode: multiply; }
         .sos-active-bg { animation: sos-flash-bg 1s infinite alternate; background-color: rgba(255, 0, 0, 0.4); display: block !important; }
         @keyframes sos-flash-bg { 0% { background-color: rgba(255, 0, 0, 0.1); } 100% { background-color: rgba(255, 0, 0, 0.5); } }
+
+        /* Pocket Mode Overlay */
+        #pocket-mode-overlay { 
+            position: fixed; inset: 0; z-index: 10000; background-color: black; color: #4ade80; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            text-align: center; padding: 20px;
+        }
+        .pocket-active { display: flex !important; }
+        .pocket-hidden { display: none !important; }
+
+        /* Marker Styles */
+        .custom-dot-marker {
+            width: 14px; height: 14px; border-radius: 50%; border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4); transition: transform 0.2s, background-color 0.3s;
+        }
+        .custom-dot-marker:active { transform: scale(1.3); }
 
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
         @keyframes pulse-purple { 0% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(147, 51, 234, 0); } 100% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0); } }
@@ -42,7 +59,6 @@
         .toast.success { border-left-color: #22c55e; }
         .toast.warning { border-left-color: #f97316; }
         .toast.danger { border-left-color: #ef4444; background-color: #fef2f2; }
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; align-items: flex-end; }
         
         .custom-scroll::-webkit-scrollbar { width: 4px; }
@@ -81,8 +97,16 @@
 <body class="bg-gray-100 overflow-hidden h-screen w-screen">
 
     <div id="sos-overlay" class="fixed inset-0 hidden"></div>
+    
+    <div id="pocket-mode-overlay" class="pocket-hidden">
+        <i class="fa-solid fa-lock text-6xl mb-6 text-gray-500"></i>
+        <h2 class="text-2xl font-bold mb-2 text-white">화면 잠금 중</h2>
+        <p class="text-sm text-gray-400 mb-8">GPS가 정상 작동 중입니다.<br>화면을 끄지 말고 이대로 주머니에 넣으세요.</p>
+        <button id="btn-unlock-screen" class="w-full max-w-xs border-2 border-green-500 text-green-500 py-4 rounded-full font-bold text-lg active:bg-green-900 transition duration-300"><i class="fa-solid fa-unlock mr-2"></i> 잠금 해제 (길게 터치)</button>
+    </div>
+
     <video id="no-sleep-video" playsinline muted loop>
-        <source src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAACAGlzb21pc28yYXZjMQAAAAhmcmVlAAACQm1kYXQAAAGzABAHAAABthADAQAAAB5lbHN0AAAAAAAAAAEAAAABAAAAAAABAAAAAAABAAAAAAOBbW9vdgAAAGxtdmhkAAAAAAAAGNQAABjUAAABAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAh0cmFrAAAAXHRraGQAAAADAAAAGNQAABjUAAAAAQAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAIAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAABAAAAAAABAAAAAAOibWRpYQAAACBtZGhkAAAAABjUAAAY1AAAAQAAAQAAAAABAFgAAAAAAAhWhGRscgAAAAAAAAAAbWluZgAAABR2bWhkAAAAAQAAAAAAAAAAAAAAJGRpbmYAAAAcZHJlZgAAAAAAAAABAAAADHVybCAAAAABAAADWnN0YmwAAAB5c3RzZAAAAAAAAAABAAAAiWF2YzEAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAQABAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGP//AAAALWF2Y0MBWQAa//8AAAAuZ2RrdRWbCAoBwQAAA+gA8F2D3awEBAQAAAAEAAAAAAQAAAAEAAAACHN0dHMAAAAAAAAAAQAAAAEAAAB4Y3R0cwAAAAAAAAAAAAABAAEAAAAcY3R0cwAAAAAAAAAAAAABAAEAAAAcc3RzYwAAAAAAAAABAAAAAQAAAAEAAAABAAAAFHN6LmEAAAAAAAAAAQAAAAQAAAA0c3RjbwAAAAAAAAABAAAAAAA=" type="video/mp4">
+        <source src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAACAGlzb21pc28yYXZjMQAAAAhmcmVlAAACQm1kYXQAAAGzABAHAAABthADAQAAAB5lbHN0AAAAAAAAAAEAAAABAAAAAAABAAAAAAOBbW9vdgAAAGxtdmhkAAAAAAAAGNQAABjUAAABAAABAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAh0cmFrAAAAXHRraGQAAAADAAAAGNQAABjUAAAAAQAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAIAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAABAAAAAAABAAAAAAOibWRpYQAAACBtZGhkAAAAABjUAAAY1AAAAQAAAQAAAAABAFgAAAAAAAhWhGRscgAAAAAAAAAAbWluZgAAABR2bWhkAAAAAQAAAAAAAAAAAAAAJGRpbmYAAAAcZHJlZgAAAAAAAAABAAAADHVybCAAAAABAAADWnN0YmwAAAB5c3RzZAAAAAAAAAABAAAAiWF2YzEAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAQABAAAAAAABAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGP//AAAALWF2Y0MBWQAa//8AAAAuZ2RrdRWbCAoBwQAAA+gA8F2D3awEBAQAAAAEAAAAAAQAAAAEAAAACHN0dHMAAAAAAAAAAQAAAAEAAAB4Y3R0cwAAAAAAAAAAAAABAAEAAAAcY3R0cwAAAAAAAAAAAAABAAEAAAAcc3RzYwAAAAAAAAABAAAAAQAAAAEAAAABAAAAFHN6LmEAAAAAAAAAAQAAAAQAAAA0c3RjbwAAAAAAAAABAAAAAAA=" type="video/mp4">
     </video>
     <div id="toast-container"></div>
     <div id="loading-screen" class="fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center">
@@ -92,269 +116,87 @@
 
     <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-90 hidden">
         <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md m-4 flex flex-col items-center max-h-[90vh] overflow-y-auto custom-scroll relative">
-            <div class="mb-6 flex flex-col items-center">
-                <img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon">
-                <h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1>
-                <p class="text-sm text-gray-500">System Admin v11.0</p>
-            </div>
-            
-            <div class="flex border-b mb-4 w-full">
-                <button id="tab-login" class="flex-1 py-2 font-bold text-blue-600 border-b-2 border-blue-600">로그인</button>
-                <button id="tab-signup" class="flex-1 py-2 text-gray-500 hover:text-blue-500">회원가입</button>
-            </div>
-            
-            <div id="form-login" class="space-y-4 w-full">
-                <input type="text" id="login-id" placeholder="아이디" class="w-full border p-3 rounded">
-                <input type="password" id="login-pw" placeholder="비밀번호" class="w-full border p-3 rounded">
-                <div class="flex items-center gap-2">
-                    <input type="checkbox" id="auto-login-check" class="w-4 h-4">
-                    <label for="auto-login-check" class="text-sm text-gray-600">자동 로그인</label>
-                </div>
-                <button id="btn-login" class="w-full bg-blue-800 text-white py-3 rounded font-bold hover:bg-blue-900 transition shadow-lg">로그인</button>
-            </div>
-
-            <div id="form-signup" class="space-y-4 hidden w-full">
-                <input type="text" id="reg-id" placeholder="아이디" class="w-full border p-3 rounded">
-                <input type="text" id="reg-name" placeholder="이름 (실명)" class="w-full border p-3 rounded">
-                <input type="password" id="reg-pw" placeholder="비밀번호" class="w-full border p-3 rounded">
-                <div class="border p-3 rounded bg-gray-50">
-                    <label class="text-xs font-bold text-gray-500 block mb-1">소속 현장 선택</label>
-                    <select id="reg-site" class="w-full border p-2 rounded bg-white"></select>
-                </div>
-                <select id="reg-role" class="w-full border p-3 rounded bg-white">
-                    <option value="worker">근로자</option>
-                    <option value="guard">경비</option>
-                    <option value="supervisor">관리감독자</option>
-                    <option value="safety">안전관리자</option>
-                    <option value="health">보건관리자</option>
-                    <option value="admin">현장소장</option>
-                </select>
-                <button id="btn-signup" class="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700 transition">가입 신청</button>
-            </div>
+            <div class="mb-6 flex flex-col items-center"><img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon"><h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1><p class="text-sm text-gray-500">System Admin v11.4</p></div>
+            <div class="flex border-b mb-4 w-full"><button id="tab-login" class="flex-1 py-2 font-bold text-blue-600 border-b-2 border-blue-600">로그인</button><button id="tab-signup" class="flex-1 py-2 text-gray-500 hover:text-blue-500">회원가입</button></div>
+            <div id="form-login" class="space-y-4 w-full"><input type="text" id="login-id" placeholder="아이디" class="w-full border p-3 rounded"><input type="password" id="login-pw" placeholder="비밀번호" class="w-full border p-3 rounded"><div class="flex items-center gap-2"><input type="checkbox" id="auto-login-check" class="w-4 h-4"><label for="auto-login-check" class="text-sm text-gray-600">자동 로그인</label></div><button id="btn-login" class="w-full bg-blue-800 text-white py-3 rounded font-bold hover:bg-blue-900 transition shadow-lg">로그인</button></div>
+            <div id="form-signup" class="space-y-4 hidden w-full"><input type="text" id="reg-id" placeholder="아이디" class="w-full border p-3 rounded"><input type="text" id="reg-name" placeholder="이름 (실명)" class="w-full border p-3 rounded"><input type="password" id="reg-pw" placeholder="비밀번호" class="w-full border p-3 rounded"><div class="border p-3 rounded bg-gray-50"><label class="text-xs font-bold text-gray-500 block mb-1">소속 현장 선택</label><select id="reg-site" class="w-full border p-2 rounded bg-white"></select></div><select id="reg-role" class="w-full border p-3 rounded bg-white"><option value="worker">근로자</option><option value="guard">경비</option><option value="supervisor">관리감독자</option><option value="safety">안전관리자</option><option value="health">보건관리자</option><option value="admin">현장소장</option></select><button id="btn-signup" class="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700 transition">가입 신청</button></div>
         </div>
     </div>
 
     <div id="main-dashboard" class="flex h-screen relative hidden">
         <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-[1400] hidden md:hidden glass transition-opacity duration-300"></div>
-
         <div class="w-80 bg-white shadow-xl z-[1500] flex flex-col border-r transition-all duration-300 absolute md:relative h-full -translate-x-full md:translate-x-0" id="sidebar">
-            <div class="p-4 bg-slate-800 text-white flex justify-between items-center shadow">
-                <div class="flex items-center gap-2">
-                    <img class="app-logo-img w-8 h-8 rounded-lg" alt="icon">
-                    <div><h2 class="font-bold text-sm">관제 상황실</h2><p class="text-[10px] text-slate-300" id="user-display">접속중...</p></div>
-                </div>
-                <div class="flex gap-1 items-center">
-                    <button id="btn-my-info" class="text-xs bg-slate-700 border border-slate-600 px-2 py-1 rounded hover:bg-slate-600 hidden" title="내 정보"><i class="fa-solid fa-user-pen"></i></button>
-                    <button id="btn-logout" class="text-xs bg-slate-700 border border-slate-600 px-2 py-1 rounded hover:bg-slate-600">로그아웃</button>
-                    <button id="btn-close-sidebar" class="md:hidden text-white ml-2 hover:text-gray-300 p-1"><i class="fa-solid fa-xmark fa-xl"></i></button>
-                </div>
-            </div>
+            <div class="p-4 bg-slate-800 text-white flex justify-between items-center shadow"><div class="flex items-center gap-2"><img class="app-logo-img w-8 h-8 rounded-lg" alt="icon"><div><h2 class="font-bold text-sm">관제 상황실</h2><p class="text-[10px] text-slate-300" id="user-display">접속중...</p></div></div><div class="flex gap-1 items-center"><button id="btn-my-info" class="text-xs bg-slate-700 border border-slate-600 px-2 py-1 rounded hover:bg-slate-600 hidden" title="내 정보"><i class="fa-solid fa-user-pen"></i></button><button id="btn-logout" class="text-xs bg-slate-700 border border-slate-600 px-2 py-1 rounded hover:bg-slate-600">로그아웃</button><button id="btn-close-sidebar" class="md:hidden text-white ml-2 hover:text-gray-300 p-1"><i class="fa-solid fa-xmark fa-xl"></i></button></div></div>
+            <div class="flex text-sm bg-gray-100 border-b"><button id="tab-monitor" class="flex-1 py-3 bg-white border-b-2 border-blue-500 font-bold text-blue-600">관제</button><button id="tab-users" class="flex-1 py-3 text-gray-500 hidden">인원 관리</button></div>
             
-            <div class="flex text-sm bg-gray-100 border-b">
-                <button id="tab-monitor" class="flex-1 py-3 bg-white border-b-2 border-blue-500 font-bold text-blue-600">관제</button>
-                <button id="tab-users" class="flex-1 py-3 text-gray-500 hidden">인원 관리</button>
-            </div>
-
             <div id="panel-monitor" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scroll bg-gray-50 pb-20">
-                <div class="bg-white p-3 rounded border shadow-sm">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-sm font-bold text-gray-700 flex items-center"><i class="fa-solid fa-satellite-dish mr-2 text-blue-500"></i>GPS 자동 추적</span>
-                        <div class="flex items-center gap-2">
-                            <span id="gps-indicator" class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded font-bold animate-pulse"><i class="fa-solid fa-circle"></i> 작동 중</span>
-                            <button onclick="refreshGPS()" class="text-[10px] bg-gray-100 border border-gray-300 px-2 py-1 rounded hover:bg-gray-200"><i class="fa-solid fa-rotate-right"></i></button>
-                        </div>
-                    </div>
-                    <div class="border-t pt-2">
-                        <div class="flex justify-between text-xs text-gray-600 mb-1"><span>내 높이 보정</span><span id="current-alt-display" class="font-bold text-blue-600">0m</span></div>
-                        <input type="range" id="alt-slider" min="-10" max="50" value="0" step="1" class="w-full">
-                    </div>
-                </div>
-
-                <div class="bg-white p-4 rounded shadow-sm border md:block hidden">
-                    <h3 class="font-bold text-gray-700 text-sm mb-2">실시간 현황</h3>
-                    <div class="grid grid-cols-4 gap-2 text-center">
-                        <div class="bg-blue-50 rounded p-1"><div class="text-[10px]">총원</div><div class="text-lg font-bold text-blue-800" id="stat-total">0</div></div>
-                        <div class="bg-green-50 rounded p-1"><div class="text-[10px]">작업중</div><div class="text-lg font-bold text-green-600" id="stat-active">0</div></div>
-                        <div class="bg-gray-100 rounded p-1"><div class="text-[10px]">이탈</div><div class="text-lg font-bold text-gray-600" id="stat-out">0</div></div>
-                        <div class="bg-red-50 rounded p-1 animate-pulse"><div class="text-[10px]">위험</div><div class="text-lg font-bold text-red-600" id="stat-danger">0</div></div>
-                    </div>
-                </div>
-
+                <div class="bg-white p-3 rounded border shadow-sm"><div class="flex justify-between items-center mb-2"><span class="text-sm font-bold text-gray-700 flex items-center"><i class="fa-solid fa-satellite-dish mr-2 text-blue-500"></i>GPS 자동 추적</span><div class="flex items-center gap-2"><span id="gps-indicator" class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded font-bold animate-pulse"><i class="fa-solid fa-circle"></i> 작동 중</span><button onclick="refreshGPS()" class="text-[10px] bg-gray-100 border border-gray-300 px-2 py-1 rounded hover:bg-gray-200"><i class="fa-solid fa-rotate-right"></i></button></div></div><div class="border-t pt-2"><div class="flex justify-between text-xs text-gray-600 mb-1"><span>내 높이 보정</span><span id="current-alt-display" class="font-bold text-blue-600">0m</span></div><input type="range" id="alt-slider" min="-10" max="50" value="0" step="1" class="w-full"></div></div>
+                <div class="bg-white p-4 rounded shadow-sm border md:block hidden"><h3 class="font-bold text-gray-700 text-sm mb-2">실시간 현황</h3><div class="grid grid-cols-4 gap-2 text-center"><div class="bg-blue-50 rounded p-1"><div class="text-[10px]">총원</div><div class="text-lg font-bold text-blue-800" id="stat-total">0</div></div><div class="bg-green-50 rounded p-1"><div class="text-[10px]">작업중</div><div class="text-lg font-bold text-green-600" id="stat-active">0</div></div><div class="bg-gray-100 rounded p-1"><div class="text-[10px]">이탈</div><div class="text-lg font-bold text-gray-600" id="stat-out">0</div></div><div class="bg-red-50 rounded p-1 animate-pulse"><div class="text-[10px]">위험</div><div class="text-lg font-bold text-red-600" id="stat-danger">0</div></div></div></div>
+                
                 <div id="danger-status-panel" class="bg-white p-4 rounded shadow-sm border border-red-100 hidden">
                     <h3 class="font-bold text-red-600 text-sm mb-2 flex items-center gap-2"><i class="fa-solid fa-stopwatch animate-pulse"></i> 위험구역 체류 현황</h3>
                     <div id="danger-worker-list" class="space-y-2 text-xs"></div>
                 </div>
-
+                
                 <div id="admin-tools" class="hidden bg-white p-4 rounded shadow-sm border border-blue-100">
                     <h3 class="font-bold text-blue-800 text-sm mb-2 flex justify-between">관리자 도구</h3>
-                    
-                    <div id="super-admin-dropdown-area" class="hidden mb-3 border-b pb-2">
-                        <label class="text-[10px] font-bold text-gray-500 block mb-1">관리할 현장 선택</label>
-                        <select id="super-admin-site-select" class="w-full text-xs border border-blue-300 rounded p-2 bg-blue-50 font-bold shadow-sm mb-2"></select>
-                        <button onclick="createTestAccounts()" class="w-full bg-indigo-100 text-indigo-700 py-2 rounded text-xs font-bold border border-indigo-200 hover:bg-indigo-200"><i class="fa-solid fa-flask"></i> 🧪 테스트 계정 일괄 생성</button>
-                    </div>
-
+                    <div id="super-admin-dropdown-area" class="hidden mb-3 border-b pb-2"><label class="text-[10px] font-bold text-gray-500 block mb-1">관리할 현장 선택</label><select id="super-admin-site-select" class="w-full text-xs border border-blue-300 rounded p-2 bg-blue-50 font-bold shadow-sm mb-2"></select><button onclick="createTestAccounts()" class="w-full bg-indigo-100 text-indigo-700 py-2 rounded text-xs font-bold border border-indigo-200 hover:bg-indigo-200"><i class="fa-solid fa-flask"></i> 🧪 테스트 계정 일괄 생성 (지도 중앙)</button></div>
                     <div id="admin-button-area" class="mb-3"></div>
-
-                    <div id="tool-default" class="space-y-2">
-                        <div class="bg-gray-50 p-2 rounded border border-gray-200">
-                            <label class="text-xs font-bold text-gray-600 block mb-1">계절 위험 관리</label>
-                            <select id="seasonal-risk-select" class="w-full text-xs p-1 border rounded" onchange="updateSeasonalRisk(this.value)">
-                                <option value="none">위험 없음</option>
-                                <option value="heat">폭염 경보</option>
-                                <option value="cold">한파 경보</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div id="tool-drawing" class="hidden space-y-2">
-                         <div class="bg-yellow-50 p-2 rounded text-xs text-center border text-yellow-800 font-bold">그리기 모드 ON</div>
-                         <button id="btn-finish-draw" class="w-full bg-green-600 text-white font-bold py-2 rounded text-sm">완료</button>
-                         <button id="btn-cancel-draw" onclick="cancelDrawing()" class="w-full bg-gray-200 text-gray-600 font-bold py-2 rounded text-sm">취소</button>
-                    </div>
+                    <div id="tool-default" class="space-y-2"><div class="bg-gray-50 p-2 rounded border border-gray-200"><label class="text-xs font-bold text-gray-600 block mb-1">계절 위험 관리</label><select id="seasonal-risk-select" class="w-full text-xs p-1 border rounded" onchange="updateSeasonalRisk(this.value)"><option value="none">위험 없음</option><option value="heat">폭염 경보</option><option value="cold">한파 경보</option></select></div></div>
+                    <div id="tool-drawing" class="hidden space-y-2"><div class="bg-yellow-50 p-2 rounded text-xs text-center border text-yellow-800 font-bold">그리기 모드 ON</div><button id="btn-finish-draw" class="w-full bg-green-600 text-white font-bold py-2 rounded text-sm">완료</button><button id="btn-cancel-draw" onclick="cancelDrawing()" class="w-full bg-gray-200 text-gray-600 font-bold py-2 rounded text-sm">취소</button></div>
                 </div>
-
-                <div class="bg-white p-4 rounded shadow-sm border">
-                    <h3 class="font-bold text-gray-700 text-sm mb-2">구역 목록</h3>
-                    <div id="zone-list" class="space-y-2 max-h-40 overflow-y-auto custom-scroll text-xs text-gray-500 text-center">로딩중...</div>
-                </div>
+                <div class="bg-white p-4 rounded shadow-sm border"><h3 class="font-bold text-gray-700 text-sm mb-2">구역 목록</h3><div id="zone-list" class="space-y-2 max-h-40 overflow-y-auto custom-scroll text-xs text-gray-500 text-center">로딩중...</div></div>
             </div>
-
-            <div id="panel-users" class="hidden flex-1 overflow-y-auto p-4 custom-scroll bg-gray-50 pb-20">
-                <h3 class="font-bold text-gray-700 text-sm mb-2 border-l-4 border-blue-500 pl-2">승인 대기</h3>
-                <div id="pending-list" class="space-y-2 mb-6"></div>
-                <h3 class="font-bold text-gray-700 text-sm mb-2 border-l-4 border-green-500 pl-2">승인 목록</h3>
-                <div id="approved-list" class="space-y-2"></div>
-            </div>
+            
+            <div id="panel-users" class="hidden flex-1 overflow-y-auto p-4 custom-scroll bg-gray-50 pb-20"><h3 class="font-bold text-gray-700 text-sm mb-2 border-l-4 border-blue-500 pl-2">승인 대기</h3><div id="pending-list" class="space-y-2 mb-6"></div><h3 class="font-bold text-gray-700 text-sm mb-2 border-l-4 border-green-500 pl-2">승인 목록</h3><div id="approved-list" class="space-y-2"></div></div>
         </div>
 
         <div class="flex-1 relative bg-gray-200">
             <div id="map" class="h-full w-full outline-none"></div>
             <button id="btn-menu-toggle" class="absolute top-4 left-4 z-[500] bg-white p-3 rounded shadow md:hidden"><i class="fa-solid fa-bars"></i></button>
-            <div class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/90 px-4 py-2 rounded-full shadow-lg z-[500] text-xs font-bold text-gray-700 border whitespace-nowrap flex flex-col items-center">
-                <div class="flex flex-col items-center gap-1">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-circle-info text-blue-500"></i>
-                        <span id="status-msg">GPS 연결 시도중...</span>
-                    </div>
-                    <span id="zone-status-display" class="text-[10px] font-bold text-slate-500">현재 구역: 탐색 중...</span>
-                </div>
-            </div>
+            
+            <button onclick="togglePocketMode()" class="absolute top-4 right-4 z-[500] bg-white text-gray-700 p-3 rounded-full shadow-lg border border-gray-200" title="화면 잠금 (주머니 모드)"><i class="fa-solid fa-lock"></i></button>
+
+            <div class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/90 px-4 py-2 rounded-full shadow-lg z-[500] text-xs font-bold text-gray-700 border whitespace-nowrap flex flex-col items-center"><div class="flex flex-col items-center gap-1"><div class="flex items-center gap-2"><i class="fa-solid fa-circle-info text-blue-500"></i><span id="status-msg">GPS 연결 시도중...</span></div><span id="zone-status-display" class="text-[10px] font-bold text-slate-500">현재 구역: 탐색 중...</span></div></div>
             <button onclick="triggerSOS()" id="btn-sos" class="sos-btn shadow-lg hover:scale-105 transition-transform"><i class="fa-solid fa-bell fa-xl mb-1"></i>SOS</button>
         </div>
-
-        <div class="mobile-stats-bar md:hidden">
-            <div class="stat-item"><span class="stat-label">총원</span><span class="stat-value text-blue-800" id="mobile-stat-total">0</span></div>
-            <div class="stat-item"><span class="stat-label">작업중</span><span class="stat-value text-green-600" id="mobile-stat-active">0</span></div>
-            <div class="stat-item"><span class="stat-label">이탈</span><span class="stat-value text-gray-600" id="mobile-stat-out">0</span></div>
-            <div class="stat-item"><span class="stat-label">위험</span><span class="stat-value text-red-600" id="mobile-stat-danger">0</span></div>
-        </div>
+        <div class="mobile-stats-bar md:hidden"><div class="stat-item"><span class="stat-label">총원</span><span class="stat-value text-blue-800" id="mobile-stat-total">0</span></div><div class="stat-item"><span class="stat-label">작업중</span><span class="stat-value text-green-600" id="mobile-stat-active">0</span></div><div class="stat-item"><span class="stat-label">이탈</span><span class="stat-value text-gray-600" id="mobile-stat-out">0</span></div><div class="stat-item"><span class="stat-label">위험</span><span class="stat-value text-red-600" id="mobile-stat-danger">0</span></div></div>
     </div>
 
     <div id="createSiteModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2200] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg p-6 w-full max-w-sm">
-            <h3 class="text-lg font-bold mb-4" id="site-modal-title">새 현장 생성</h3>
-            <input type="hidden" id="edit-site-id">
-            <input type="text" id="new-site-name" placeholder="현장 이름" class="w-full border p-2 rounded mb-3">
-            <div class="flex gap-2"><button onclick="saveSiteData()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">저장</button><button onclick="document.getElementById('createSiteModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">취소</button></div>
-        </div>
+        <div class="bg-white rounded-lg p-6 w-full max-w-sm"><h3 class="text-lg font-bold mb-4" id="site-modal-title">새 현장 생성</h3><input type="hidden" id="edit-site-id"><input type="text" id="new-site-name" placeholder="현장 이름" class="w-full border p-2 rounded mb-3"><div class="flex gap-2"><button onclick="saveSiteData()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">저장</button><button onclick="document.getElementById('createSiteModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">취소</button></div></div>
     </div>
-
     <div id="deleteSelectionModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2300] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg p-6 w-full max-w-sm text-center shadow-xl">
-            <h3 class="text-lg font-bold mb-4 text-red-700"><i class="fa-solid fa-trash-can"></i> 삭제 관리</h3>
-            <p class="text-sm text-gray-600 mb-6">삭제할 대상을 선택하세요.</p>
-            <div class="space-y-3 mb-4">
-                <button onclick="deleteCurrentSite()" class="w-full bg-red-100 text-red-700 py-3 rounded-lg font-bold border border-red-300 hover:bg-red-200 flex items-center justify-center gap-2"><i class="fa-solid fa-building-circle-xmark"></i> 현재 현장 영구 삭제</button>
-                <button onclick="showDeleteZoneHint(); document.getElementById('deleteSelectionModal').classList.add('hidden');" class="w-full bg-blue-50 text-blue-700 py-3 rounded-lg font-bold border border-blue-200 hover:bg-blue-100 flex items-center justify-center gap-2"><i class="fa-solid fa-eraser"></i> 개별 구역 삭제</button>
-            </div>
-            <button onclick="document.getElementById('deleteSelectionModal').classList.add('hidden')" class="w-full bg-gray-200 text-gray-700 py-2 rounded font-bold">취소</button>
-        </div>
+        <div class="bg-white rounded-lg p-6 w-full max-w-sm text-center shadow-xl"><h3 class="text-lg font-bold mb-4 text-red-700"><i class="fa-solid fa-trash-can"></i> 삭제 관리</h3><p class="text-sm text-gray-600 mb-6">삭제할 대상을 선택하세요.</p><div class="space-y-3 mb-4"><button onclick="deleteCurrentSite()" class="w-full bg-red-100 text-red-700 py-3 rounded-lg font-bold border border-red-300 hover:bg-red-200 flex items-center justify-center gap-2"><i class="fa-solid fa-building-circle-xmark"></i> 현재 현장 영구 삭제</button><button onclick="showDeleteZoneHint(); document.getElementById('deleteSelectionModal').classList.add('hidden');" class="w-full bg-blue-50 text-blue-700 py-3 rounded-lg font-bold border border-blue-200 hover:bg-blue-100 flex items-center justify-center gap-2"><i class="fa-solid fa-eraser"></i> 개별 구역 삭제</button></div><button onclick="document.getElementById('deleteSelectionModal').classList.add('hidden')" class="w-full bg-gray-200 text-gray-700 py-2 rounded font-bold">취소</button></div>
     </div>
-
     <div id="zoneModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2000] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl">
-            <h3 class="text-lg font-bold mb-4" id="zone-modal-title">새 구역 저장</h3>
-            <input type="hidden" id="editing-zone-id">
-            <div class="mb-3">
-                <label class="text-xs font-bold text-gray-600 block mb-1">구역 유형</label>
-                <select id="zone-type" class="w-full border p-2 rounded bg-white" onchange="handleZoneTypeChange()">
-                    <option value="boundary">🏗️ 현장 경계 (Site Boundary)</option>
-                    <option value="normal" selected>🟦 일반 작업 구역</option>
-                    <option value="danger">🟥 위험/제한 구역</option>
-                </select>
-                <p id="zone-type-info" class="text-[10px] text-blue-500 mt-1 hidden">💡 이 현장의 첫 구역이므로 '현장 경계'로 자동 설정됩니다.</p>
-            </div>
+            <h3 class="text-lg font-bold mb-4" id="zone-modal-title">새 구역 저장</h3><input type="hidden" id="editing-zone-id">
+            <div class="mb-3"><label class="text-xs font-bold text-gray-600 block mb-1">구역 유형</label><select id="zone-type" class="w-full border p-2 rounded bg-white" onchange="handleZoneTypeChange()"><option value="boundary">🏗️ 현장 경계 (Site Boundary)</option><option value="normal" selected>🟦 일반 작업 구역</option><option value="danger">🟥 위험/제한 구역</option></select><p id="zone-type-info" class="text-[10px] text-blue-500 mt-1 hidden">💡 이 현장의 첫 구역이므로 '현장 경계'로 자동 설정됩니다.</p></div>
             <input type="text" id="zone-name" placeholder="구역 이름" class="w-full border p-2 rounded mb-3">
             <div id="height-config-area" class="bg-gray-50 p-3 rounded border border-gray-200 mb-3 hidden">
-                <label class="text-xs font-bold text-red-600 block mb-2"><i class="fa-solid fa-ruler-vertical"></i> 높이 제한 설정 (필수)</label>
-                <div class="flex gap-2 items-center">
-                    <input type="number" id="zone-alt-min" value="-50" class="border w-16 text-center rounded p-1 text-sm"><span class="text-xs">m ~</span>
-                    <input type="number" id="zone-alt-max" value="500" class="border w-16 text-center rounded p-1 text-sm"><span class="text-xs">m</span>
-                </div>
+                <label class="text-xs font-bold text-red-600 block mb-2"><i class="fa-solid fa-ruler-vertical"></i> 높이 및 시간 제한 (필수)</label>
+                <div class="flex gap-2 items-center mb-2"><input type="number" id="zone-alt-min" value="-50" class="border w-16 text-center rounded p-1 text-sm"><span class="text-xs">m ~</span><input type="number" id="zone-alt-max" value="500" class="border w-16 text-center rounded p-1 text-sm"><span class="text-xs">m</span></div>
+                <div class="flex items-center gap-2"><label class="text-xs text-gray-600">허용 체류 시간:</label><input type="number" id="zone-time-limit" value="60" class="border w-16 text-center rounded p-1 text-sm"><span class="text-xs">초</span></div>
             </div>
+            <button id="btn-redraw-zone" onclick="redrawZone()" class="w-full bg-yellow-100 text-yellow-700 py-2 rounded font-bold border border-yellow-300 mb-2 hidden"><i class="fa-solid fa-rotate"></i> 영역 모양 다시 그리기</button>
             <div class="flex gap-2"><button onclick="saveZone()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">저장</button><button onclick="document.getElementById('zoneModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">취소</button></div>
         </div>
     </div>
-
     <div id="userInfoModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2100] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl overflow-y-auto max-h-[80vh]">
-            <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-address-card text-blue-600"></i> 근로자 정보 관리</h3>
-            <input type="hidden" id="edit-user-id">
+            <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-address-card text-blue-600"></i> 근로자 정보 관리</h3><input type="hidden" id="edit-user-id">
             <div class="space-y-3">
-                <div id="super-admin-user-site-area" class="bg-yellow-50 p-3 rounded border border-yellow-200 hidden">
-                    <label class="text-xs font-bold text-yellow-800 block mb-1">👑 소속 현장 이동</label>
-                    <select id="edit-user-site-select" class="w-full border p-2 rounded text-sm bg-white font-bold"></select>
-                </div>
-                <div class="bg-blue-50 p-3 rounded border border-blue-100">
-                    <label class="text-xs font-bold text-blue-800 block mb-1">📋 작업 구역 지정</label>
-                    <input type="text" id="edit-assigned-area" class="w-full border p-2 rounded text-sm bg-white">
-                </div>
-                <div class="bg-green-50 p-3 rounded border border-green-100">
-                    <label class="text-xs font-bold text-green-800 block mb-1">🏥 보건 관리 정보</label>
-                    <div class="grid grid-cols-2 gap-2 mb-2">
-                        <div><label class="text-[10px] text-gray-500">검진 등급</label><select id="edit-health-grade" class="w-full border p-1 rounded text-xs bg-white"><option value="A">A</option><option value="B">B</option><option value="C1">C1</option><option value="C2">C2</option><option value="D1">D1</option><option value="D2">D2</option><option value="R">R</option></select></div>
-                        <div><label class="text-[10px] text-gray-500">검진 일자</label><input type="date" id="edit-checkup-date" class="w-full border p-1 rounded text-xs"></div>
-                    </div>
-                    <div class="space-y-1">
-                        <div class="flex items-center gap-2"><input type="checkbox" id="edit-has-bp"><label for="edit-has-bp" class="text-xs">고혈압</label></div>
-                        <div class="flex items-center gap-2"><input type="checkbox" id="edit-has-diabetes"><label for="edit-has-diabetes" class="text-xs">당뇨</label></div>
-                        <div class="flex items-center gap-2"><input type="checkbox" id="edit-is-elderly"><label for="edit-is-elderly" class="text-xs">고령자</label></div>
-                        <div class="flex items-center gap-2 border-t pt-1 mt-1"><input type="checkbox" id="edit-confined-trained"><label for="edit-confined-trained" class="text-xs font-bold text-blue-700">밀폐공간 교육이수</label></div>
-                    </div>
-                </div>
-                <div class="p-2 border rounded">
-                    <label class="text-xs font-bold text-gray-500 block mb-1">연락처</label>
-                    <input type="text" id="edit-personal-info" class="w-full border p-2 rounded text-sm">
-                </div>
+                <div id="super-admin-user-site-area" class="bg-yellow-50 p-3 rounded border border-yellow-200 hidden"><label class="text-xs font-bold text-yellow-800 block mb-1">👑 소속 현장 이동</label><select id="edit-user-site-select" class="w-full border p-2 rounded text-sm bg-white font-bold"></select></div>
+                <div class="bg-blue-50 p-3 rounded border border-blue-100"><label class="text-xs font-bold text-blue-800 block mb-1">📋 작업 구역 지정</label><input type="text" id="edit-assigned-area" class="w-full border p-2 rounded text-sm bg-white"></div>
+                <div class="bg-green-50 p-3 rounded border border-green-100"><label class="text-xs font-bold text-green-800 block mb-1">🏥 보건 관리 정보 (v11.0)</label><div class="grid grid-cols-2 gap-2 mb-2"><div><label class="text-[10px] text-gray-500">검진 등급</label><select id="edit-health-grade" class="w-full border p-1 rounded text-xs bg-white"><option value="A">A</option><option value="B">B</option><option value="C1">C1</option><option value="C2">C2</option><option value="D1">D1</option><option value="D2">D2</option><option value="R">R</option></select></div><div><label class="text-[10px] text-gray-500">검진 일자</label><input type="date" id="edit-checkup-date" class="w-full border p-1 rounded text-xs"></div></div><div class="space-y-1"><div class="flex items-center gap-2"><input type="checkbox" id="edit-has-bp"><label for="edit-has-bp" class="text-xs">고혈압</label></div><div class="flex items-center gap-2"><input type="checkbox" id="edit-has-diabetes"><label for="edit-has-diabetes" class="text-xs">당뇨</label></div><div class="flex items-center gap-2"><input type="checkbox" id="edit-is-elderly"><label for="edit-is-elderly" class="text-xs">고령자</label></div><div class="flex items-center gap-2 border-t pt-1 mt-1"><input type="checkbox" id="edit-confined-trained"><label for="edit-confined-trained" class="text-xs font-bold text-blue-700">밀폐공간 교육이수</label></div></div></div>
+                <div class="p-2 border rounded"><label class="text-xs font-bold text-gray-500 block mb-1">연락처</label><input type="text" id="edit-personal-info" class="w-full border p-2 rounded text-sm"></div>
                 <div><label class="text-xs font-bold text-gray-500 block mb-1">직종/장비</label><input type="text" id="edit-job" class="w-full border p-2 rounded text-sm mb-1" placeholder="직종"><input type="text" id="edit-equip" class="w-full border p-2 rounded text-sm" placeholder="장비"></div>
             </div>
-            <div class="flex gap-2 mt-6">
-                <button onclick="saveUserInfo()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">저장</button>
-                <button onclick="document.getElementById('userInfoModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">닫기</button>
-            </div>
+            <div class="flex gap-2 mt-6"><button onclick="saveUserInfo()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">저장</button><button onclick="document.getElementById('userInfoModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">닫기</button></div>
         </div>
     </div>
-
-    <div id="myInfoModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2100] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl overflow-y-auto">
-            <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-user-pen text-green-600"></i> 내 정보 수정</h3>
-            <div class="space-y-4">
-                <div><label class="text-xs font-bold text-gray-500 block mb-1">이름</label><input type="text" id="my-name" class="w-full border p-2 rounded text-sm"></div>
-                <div class="bg-red-50 p-3 rounded border border-red-100">
-                    <div class="flex items-center gap-2 mb-2"><i class="fa-solid fa-heart-pulse text-red-500"></i><span class="text-xs font-bold text-red-800">자가 건강 관리 (일일)</span></div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div><label class="text-[10px] text-gray-600 block">혈압 (mmHg)</label><input type="text" id="my-bp" class="w-full border p-1 rounded text-sm bg-white" placeholder="120/80"></div>
-                        <div><label class="text-[10px] text-gray-600 block">혈당 (mg/dL)</label><input type="number" id="my-sugar" class="w-full border p-1 rounded text-sm bg-white" placeholder="95"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="flex gap-2 mt-6">
-                <button onclick="saveMyInfo()" class="flex-1 bg-green-600 text-white py-2 rounded font-bold">저장</button>
-                <button onclick="document.getElementById('myInfoModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">닫기</button>
-            </div>
-        </div>
-    </div>
+    <div id="myInfoModal" class="fixed inset-0 bg-black bg-opacity-50 z-[2100] hidden flex items-center justify-center p-4"><div class="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl overflow-y-auto"><h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-user-pen text-green-600"></i> 내 정보 수정</h3><div class="space-y-4"><div><label class="text-xs font-bold text-gray-500 block mb-1">이름</label><input type="text" id="my-name" class="w-full border p-2 rounded text-sm"></div><div class="bg-red-50 p-3 rounded border border-red-100"><div class="flex items-center gap-2 mb-2"><i class="fa-solid fa-heart-pulse text-red-500"></i><span class="text-xs font-bold text-red-800">자가 건강 관리 (일일)</span></div><div class="grid grid-cols-2 gap-2"><div><label class="text-[10px] text-gray-600 block">혈압 (mmHg)</label><input type="text" id="my-bp" class="w-full border p-1 rounded text-sm bg-white" placeholder="120/80"></div><div><label class="text-[10px] text-gray-600 block">혈당 (mg/dL)</label><input type="number" id="my-sugar" class="w-full border p-1 rounded text-sm bg-white" placeholder="95"></div></div></div></div><div class="flex gap-2 mt-6"><button onclick="saveMyInfo()" class="flex-1 bg-green-600 text-white py-2 rounded font-bold">저장</button><button onclick="document.getElementById('myInfoModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-2 rounded">닫기</button></div></div></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -362,12 +204,8 @@
         import { getFirestore, collection, doc, getDocs, setDoc, addDoc, deleteDoc, onSnapshot, query, where, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = { apiKey: "AIzaSyBDVhMMDtcIDGWA-s0kHb0EMmaOLIPV4L0", authDomain: "smart-safety-monitor.firebaseapp.com", projectId: "smart-safety-monitor", storageBucket: "smart-safety-monitor.firebasestorage.app", messagingSenderId: "591476915568", appId: "1:591476915568:web:ea0c0fc708ca6c830ba3b5", measurementId: "G-GH963JH8BG" };
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const SITE_CENTER = { lat: 37.5665, lng: 126.9780 };
-        const MAX_DISTANCE_KM = 0.1;
+        const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const SITE_CENTER = { lat: 37.5665, lng: 126.9780 }; const MAX_DISTANCE_KM = 0.1;
 
         let map, currentUser = null, currentSiteId = null;
         let zones = [], activeWorkers = [];
@@ -375,154 +213,63 @@
         let isDrawing = false, drawingPoints = [];
         let gpsWatchId = null, currentAltitude = 0, isOutOfRange = false, isFirstGPSFix = true;
         let unsubscribers = [], editingZoneId = null, siteMap = {}, sosInterval = null, boundaryPolygon = null;
+        let alarmInterval = null;
 
         const getColRef = (name) => collection(db, 'artifacts', appId, 'public', 'data', name);
         const isManager = (role) => ['super_admin', 'admin', 'safety', 'health', 'supervisor'].includes(role);
         const isSiteAdmin = (role) => ['super_admin', 'admin', 'safety', 'health'].includes(role);
         const canCreateZone = (role) => isManager(role);
         const canDeleteZone = (role) => isSiteAdmin(role);
+        function isZoneEditable(user, zone) {
+            if (user.role === 'super_admin') return true; if (user.siteId !== zone.siteId && zone.siteId !== 'all') return false; 
+            if (user.role === 'admin') return true; if (['safety', 'health', 'supervisor'].includes(user.role)) return zone.type !== 'boundary'; return false;
+        }
 
         async function requestWakeLock() { try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch (err) { console.warn('Wake Lock failed', err); } }
         function enableNoSleep() { const video = document.getElementById('no-sleep-video'); if (video) video.play().catch(e => console.log("Video play error", e)); requestWakeLock(); }
         document.addEventListener('click', enableNoSleep, { once: true }); document.addEventListener('touchstart', enableNoSleep, { once: true });
 
         async function initApp() {
-             try {
-                await signInAnonymously(auth);
-                const q = query(getColRef('users'), where('id', '==', 'dark584'));
-                const snap = await getDocs(q);
-                if (snap.empty) await addDoc(getColRef('users'), { id: 'dark584', pw: 'Rufghs0423!!', name: '최고 관리자', role: 'super_admin', approved: true, siteId: 'all' });
-                
-                const savedId = localStorage.getItem('savedUserId');
-                if (savedId) {
-                    const qUser = query(getColRef('users'), where('id', '==', savedId));
-                    const sUser = await getDocs(qUser);
-                    if (!sUser.empty) {
-                        const d = sUser.docs[0];
-                        const u = { ...d.data(), id: d.id };
-                        if (u.approved) {
-                            if(u.id === 'dark584') { u.role = 'super_admin'; u.siteId = 'all'; }
-                            loginSuccess(u); return;
-                        }
-                    }
-                }
-                loadSitesToSelect('reg-site');
-                document.getElementById('loading-screen').classList.add('hidden');
-                document.getElementById('auth-screen').classList.remove('hidden');
+             try { await signInAnonymously(auth); const q = query(getColRef('users'), where('id', '==', 'dark584')); const snap = await getDocs(q); if (snap.empty) await addDoc(getColRef('users'), { id: 'dark584', pw: 'Rufghs0423!!', name: '최고 관리자', role: 'super_admin', approved: true, siteId: 'all' });
+                const savedId = localStorage.getItem('savedUserId'); if (savedId) { const qUser = query(getColRef('users'), where('id', '==', savedId)); const sUser = await getDocs(qUser); if (!sUser.empty) { const d = sUser.docs[0]; const u = { ...d.data(), id: d.id }; if (u.approved) { if(u.id === 'dark584') { u.role = 'super_admin'; u.siteId = 'all'; } loginSuccess(u); return; } } }
+                loadSitesToSelect('reg-site'); document.getElementById('loading-screen').classList.add('hidden'); document.getElementById('auth-screen').classList.remove('hidden');
              } catch(e) { console.error(e); document.getElementById('loading-screen').classList.add('hidden'); document.getElementById('auth-screen').classList.remove('hidden'); }
         }
         initApp();
 
-        function loadSitesToSelect(elementId) {
-            onSnapshot(getColRef('sites'), (snap) => {
-                const sel = document.getElementById(elementId);
-                const currentVal = sel.value;
-                sel.innerHTML = '<option value="" disabled selected>현장 선택</option>';
-                if(elementId === 'super_admin_site_select') sel.innerHTML += '<option value="all">🌐 모든 현장 보기 (통합)</option>';
-                snap.forEach(d => { const s = d.data(); siteMap[d.id] = s.name; sel.innerHTML += `<option value="${d.id}">${s.name}</option>`; });
-                if(currentVal) sel.value = currentVal;
-            });
-        }
-
-        window.handleLogin = async () => {
-            const id = document.getElementById('login-id').value; const pw = document.getElementById('login-pw').value;
-            if(!id || !pw) return alert("입력 필요");
-            const q = query(getColRef('users'), where('id', '==', id), where('pw', '==', pw));
-            const snap = await getDocs(q);
-            if(snap.empty) return alert("정보 불일치");
-            const u = { ...snap.docs[0].data(), id: snap.docs[0].id };
-            if(!u.approved) return alert("승인 대기 중");
-            if (id === 'dark584' && pw === 'Rufghs0423!!') { u.role = 'super_admin'; u.siteId = 'all'; }
-            if(document.getElementById('auto-login-check').checked) localStorage.setItem('savedUserId', u.id);
-            loginSuccess(u);
-        }
-
-        function loginSuccess(u) {
-            currentUser = u; currentSiteId = u.siteId;
-            document.getElementById('auth-screen').classList.add('hidden');
-            document.getElementById('main-dashboard').classList.remove('hidden');
-            document.getElementById('user-display').innerText = `${currentUser.name} (${getRoleName(currentUser.role)})`;
-            if(isManager(currentUser.role)) { document.getElementById('admin-tools').classList.remove('hidden'); document.getElementById('tab-users').classList.remove('hidden'); updateAdminToolsUI(); }
-            if(currentUser.role === 'worker') document.getElementById('btn-my-info').classList.remove('hidden');
-            enableNoSleep(); initMap(); subscribeData(); startGPS(); setInterval(renderDangerList, 1000);
-        }
+        function loadSitesToSelect(elementId) { onSnapshot(getColRef('sites'), (snap) => { const sel = document.getElementById(elementId); const currentVal = sel.value; sel.innerHTML = '<option value="" disabled selected>현장 선택</option>'; if(elementId === 'super_admin_site_select') sel.innerHTML += '<option value="all">🌐 모든 현장 보기 (통합)</option>'; snap.forEach(d => { const s = d.data(); siteMap[d.id] = s.name; sel.innerHTML += `<option value="${d.id}">${s.name}</option>`; }); if(currentVal) sel.value = currentVal; }); }
+        window.handleLogin = async () => { const id = document.getElementById('login-id').value; const pw = document.getElementById('login-pw').value; if(!id || !pw) return alert("입력 필요"); const q = query(getColRef('users'), where('id', '==', id), where('pw', '==', pw)); const snap = await getDocs(q); if(snap.empty) return alert("정보 불일치"); const u = { ...snap.docs[0].data(), id: snap.docs[0].id }; if(!u.approved) return alert("승인 대기 중"); if (id === 'dark584' && pw === 'Rufghs0423!!') { u.role = 'super_admin'; u.siteId = 'all'; } if(document.getElementById('auto-login-check').checked) localStorage.setItem('savedUserId', u.id); loginSuccess(u); }
+        function loginSuccess(u) { currentUser = u; currentSiteId = u.siteId; document.getElementById('auth-screen').classList.add('hidden'); document.getElementById('main-dashboard').classList.remove('hidden'); document.getElementById('user-display').innerText = `${currentUser.name} (${getRoleName(currentUser.role)})`; if(isManager(currentUser.role)) { document.getElementById('admin-tools').classList.remove('hidden'); document.getElementById('tab-users').classList.remove('hidden'); updateAdminToolsUI(); } if(currentUser.role === 'worker') document.getElementById('btn-my-info').classList.remove('hidden'); enableNoSleep(); initMap(); subscribeData(); startGPS(); setInterval(renderDangerList, 1000); setInterval(checkDangerOvertime, 1000); }
 
         function updateAdminToolsUI() {
-            const role = currentUser.role; const btnArea = document.getElementById('admin-button-area'); const dropdownArea = document.getElementById('super-admin-dropdown-area');
-            btnArea.innerHTML = '';
-            if (role === 'super_admin') {
-                dropdownArea.classList.remove('hidden'); loadSuperAdminSiteSelector();
-                btnArea.innerHTML = `<div class="grid grid-cols-2 gap-2"><button onclick="openCreateSiteModal()" class="bg-blue-600 text-white font-bold py-3 rounded text-xs hover:bg-blue-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-plus"></i> 현장 생성</button><button onclick="openDeleteSelectionModal()" class="bg-red-600 text-white font-bold py-3 rounded text-xs hover:bg-red-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-trash-can"></i> 삭제 관리</button><button onclick="openEditSiteModal()" class="bg-gray-600 text-white font-bold py-3 rounded text-xs hover:bg-gray-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-pen"></i> 현장 수정</button><button onclick="startDrawing()" class="bg-purple-600 text-white font-bold py-3 rounded text-xs hover:bg-purple-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-draw-polygon"></i> 구역 생성</button></div>`;
-            } else if (['admin', 'safety', 'health'].includes(role)) {
-                dropdownArea.classList.add('hidden');
-                btnArea.innerHTML = `<div class="grid grid-cols-3 gap-1"><button onclick="startDrawing()" class="bg-blue-600 text-white font-bold py-3 rounded text-xs hover:bg-blue-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-draw-polygon"></i> 구역 생성</button><button onclick="showDeleteZoneHint()" class="bg-red-100 text-red-600 font-bold py-3 rounded text-xs hover:bg-red-200 flex items-center justify-center gap-1 shadow-sm border border-red-200"><i class="fa-solid fa-trash-can"></i> 구역 삭제</button><button onclick="showEditZoneHint()" class="bg-gray-100 text-gray-700 font-bold py-3 rounded text-xs hover:bg-gray-200 flex items-center justify-center gap-1 shadow-sm border border-gray-300"><i class="fa-solid fa-pen-to-square"></i> 구역 수정</button></div>`;
-            } else if (role === 'supervisor') {
-                dropdownArea.classList.add('hidden');
-                btnArea.innerHTML = `<div class="grid grid-cols-2 gap-2"><button onclick="startDrawing()" class="bg-blue-600 text-white font-bold py-3 rounded text-xs hover:bg-blue-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-draw-polygon"></i> 구역 생성</button><button onclick="showEditZoneHint()" class="bg-gray-100 text-gray-700 font-bold py-3 rounded text-xs hover:bg-gray-200 flex items-center justify-center gap-1 shadow-sm border border-gray-300"><i class="fa-solid fa-pen-to-square"></i> 구역 수정</button></div>`;
-            }
+            const role = currentUser.role; const btnArea = document.getElementById('admin-button-area'); const dropdownArea = document.getElementById('super-admin-dropdown-area'); btnArea.innerHTML = '';
+            if (role === 'super_admin') { dropdownArea.classList.remove('hidden'); loadSuperAdminSiteSelector(); btnArea.innerHTML = `<div class="grid grid-cols-2 gap-2"><button onclick="openCreateSiteModal()" class="bg-blue-600 text-white font-bold py-3 rounded text-xs hover:bg-blue-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-plus"></i> 현장 생성</button><button onclick="openDeleteSelectionModal()" class="bg-red-600 text-white font-bold py-3 rounded text-xs hover:bg-red-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-trash-can"></i> 삭제 관리</button><button onclick="openEditSiteModal()" class="bg-gray-600 text-white font-bold py-3 rounded text-xs hover:bg-gray-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-pen"></i> 현장 수정</button><button onclick="startDrawing()" class="bg-purple-600 text-white font-bold py-3 rounded text-xs hover:bg-purple-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-draw-polygon"></i> 구역 생성</button></div>`; } 
+            else if (['admin', 'safety', 'health'].includes(role)) { dropdownArea.classList.add('hidden'); btnArea.innerHTML = `<div class="grid grid-cols-3 gap-1"><button onclick="startDrawing()" class="bg-blue-600 text-white font-bold py-3 rounded text-xs hover:bg-blue-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-draw-polygon"></i> 구역 생성</button><button onclick="showDeleteZoneHint()" class="bg-red-100 text-red-600 font-bold py-3 rounded text-xs hover:bg-red-200 flex items-center justify-center gap-1 shadow-sm border border-red-200"><i class="fa-solid fa-trash-can"></i> 구역 삭제</button><button onclick="showEditZoneHint()" class="bg-gray-100 text-gray-700 font-bold py-3 rounded text-xs hover:bg-gray-200 flex items-center justify-center gap-1 shadow-sm border border-gray-300"><i class="fa-solid fa-pen-to-square"></i> 구역 수정</button></div>`; } 
+            else if (role === 'supervisor') { dropdownArea.classList.add('hidden'); btnArea.innerHTML = `<div class="grid grid-cols-2 gap-2"><button onclick="startDrawing()" class="bg-blue-600 text-white font-bold py-3 rounded text-xs hover:bg-blue-700 flex items-center justify-center gap-1 shadow-sm"><i class="fa-solid fa-draw-polygon"></i> 구역 생성</button><button onclick="showEditZoneHint()" class="bg-gray-100 text-gray-700 font-bold py-3 rounded text-xs hover:bg-gray-200 flex items-center justify-center gap-1 shadow-sm border border-gray-300"><i class="fa-solid fa-pen-to-square"></i> 구역 수정</button></div>`; }
         }
         window.showDeleteZoneHint = () => alert("삭제하려는 구역을 아래 '구역 목록'에서 찾아 휴지통 아이콘을 클릭하세요.");
         window.showEditZoneHint = () => alert("수정하려는 구역을 지도에서 클릭하거나, 목록의 연필 아이콘을 클릭하세요.");
-
-        window.handleSignup = async () => {
-            const id = document.getElementById('reg-id').value; const name = document.getElementById('reg-name').value; const pw = document.getElementById('reg-pw').value;
-            const role = document.getElementById('reg-role').value; const siteId = document.getElementById('reg-site').value;
-            if(!id||!name||!pw||!siteId) return alert("모든 정보 입력 필요");
-            const q = query(getColRef('users'), where('id', '==', id));
-            if(!(await getDocs(q)).empty) return alert("ID 중복");
-            await addDoc(getColRef('users'), { id, name, pw, role, siteId, approved: false });
-            alert("신청 완료. 관리자 승인 대기"); switchAuth('login');
-        }
+        window.handleSignup = async () => { const id = document.getElementById('reg-id').value; const name = document.getElementById('reg-name').value; const pw = document.getElementById('reg-pw').value; const role = document.getElementById('reg-role').value; const siteId = document.getElementById('reg-site').value; if(!id||!name||!pw||!siteId) return alert("모든 정보 입력 필요"); const q = query(getColRef('users'), where('id', '==', id)); if(!(await getDocs(q)).empty) return alert("ID 중복"); await addDoc(getColRef('users'), { id, name, pw, role, siteId, approved: false }); alert("신청 완료. 관리자 승인 대기"); switchAuth('login'); }
         window.switchAuth = (mode) => { document.getElementById('form-login').classList.toggle('hidden', mode !== 'login'); document.getElementById('form-signup').classList.toggle('hidden', mode === 'login'); }
-
-        function loadSuperAdminSiteSelector() {
-            const sel = document.getElementById('super-admin-site-select');
-            onSnapshot(getColRef('sites'), (snap) => {
-                sel.innerHTML = '<option value="all">🌐 모든 현장 보기 (통합)</option>';
-                snap.forEach(d => { sel.innerHTML += `<option value="${d.id}">${d.data().name}</option>`; });
-            });
-            sel.onchange = (e) => { currentSiteId = e.target.value; subscribeData(); };
-        }
-
-        function initMap() {
-            map = L.map('map', {zoomControl: false}).setView([SITE_CENTER.lat, SITE_CENTER.lng], 16);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(map);
-            L.control.zoom({position: 'bottomright'}).addTo(map);
-            L.circle([SITE_CENTER.lat, SITE_CENTER.lng], { radius: 10, color: 'black', fillColor: 'black' }).bindPopup("현장 기준점").addTo(map);
-            map.on('click', (e) => { if(isDrawing) addDrawingPoint(e.latlng); });
-        }
+        function loadSuperAdminSiteSelector() { const sel = document.getElementById('super-admin-site-select'); onSnapshot(getColRef('sites'), (snap) => { sel.innerHTML = '<option value="all">🌐 모든 현장 보기 (통합)</option>'; snap.forEach(d => { sel.innerHTML += `<option value="${d.id}">${d.data().name}</option>`; }); }); sel.onchange = (e) => { currentSiteId = e.target.value; subscribeData(); }; }
+        
+        function initMap() { map = L.map('map', {zoomControl: false}).setView([SITE_CENTER.lat, SITE_CENTER.lng], 16); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(map); L.control.zoom({position: 'bottomright'}).addTo(map); L.circle([SITE_CENTER.lat, SITE_CENTER.lng], { radius: 10, color: 'black', fillColor: 'black' }).bindPopup("현장 기준점").addTo(map); map.on('click', (e) => { if(isDrawing) addDrawingPoint(e.latlng); }); }
 
         function subscribeData() {
-            unsubscribers.forEach(unsub => unsub()); unsubscribers = [];
-            mapLayers.zones.forEach(l => map.removeLayer(l)); mapLayers.zones = [];
-            mapLayers.users.forEach(l => map.removeLayer(l)); mapLayers.users = [];
-            activeWorkers = []; boundaryPolygon = null;
-
+            unsubscribers.forEach(unsub => unsub()); unsubscribers = []; mapLayers.zones.forEach(l => map.removeLayer(l)); mapLayers.zones = []; mapLayers.users.forEach(l => map.removeLayer(l)); mapLayers.users = []; activeWorkers = []; boundaryPolygon = null;
             let qZone = getColRef('zones'); if(currentSiteId !== 'all') qZone = query(qZone, where('siteId', '==', currentSiteId));
             unsubscribers.push(onSnapshot(qZone, (snap) => {
-                mapLayers.zones.forEach(l => map.removeLayer(l)); mapLayers.zones = []; zones = [];
-                const listEl = document.getElementById('zone-list'); listEl.innerHTML = '';
+                mapLayers.zones.forEach(l => map.removeLayer(l)); mapLayers.zones = []; zones = []; const listEl = document.getElementById('zone-list'); listEl.innerHTML = '';
                 snap.forEach(doc => {
-                    const z = { id: doc.id, ...doc.data() };
-                    if(typeof z.points === 'string') z.points = JSON.parse(z.points);
-                    zones.push(z);
-                    let color = '#3b82f6', dashArray = null, fillOpacity = 0.15;
-                    if(z.type === 'boundary') { color = '#000000'; dashArray = '10, 10'; fillOpacity = 0.05; boundaryPolygon = turf.polygon([[...z.points, z.points[0]]]); }
-                    else if (z.type === 'danger' || z.isConfined) { color = '#ef4444'; }
-                    
-                    const poly = L.polygon(z.points, { color, fillColor: color, fillOpacity, weight: 2, dashArray }).addTo(map);
-                    if(z.type === 'boundary') poly.bringToBack();
-                    poly.bindTooltip(z.name);
-                    if(canCreateZone(currentUser.role)) poly.on('click', () => { if(!isDrawing) openZoneEdit(z); });
+                    const z = { id: doc.id, ...doc.data() }; if(typeof z.points === 'string') z.points = JSON.parse(z.points); zones.push(z);
+                    let color = '#3b82f6', dashArray = null, fillOpacity = 0.15; if(z.type === 'boundary') { color = '#000000'; dashArray = '10, 10'; fillOpacity = 0.05; boundaryPolygon = turf.polygon([[...z.points, z.points[0]]]); } else if (z.type === 'danger' || z.isConfined) { color = '#ef4444'; }
+                    const poly = L.polygon(z.points, { color, fillColor: color, fillOpacity, weight: 2, dashArray }).addTo(map); if(z.type === 'boundary') poly.bringToBack(); poly.bindTooltip(z.name);
+                    if(isZoneEditable(currentUser, z)) { poly.on('click', () => { if(!isDrawing) openZoneEdit(z); }); }
                     mapLayers.zones.push(poly);
-
                     const div = document.createElement('div'); div.className = "flex justify-between p-2 border rounded hover:bg-gray-50 cursor-pointer items-center mb-1";
-                    let btns = '';
-                    if(canDeleteZone(currentUser.role)) btns += `<button onclick="window.deleteZone('${z.id}')" class="text-gray-400 hover:text-red-500 p-1"><i class="fa-solid fa-trash"></i></button>`;
-                    else if (canCreateZone(currentUser.role)) btns += `<button onclick='openZoneEdit(${JSON.stringify(z).replace(/'/g, "&#39;")})' class="text-gray-400 hover:text-blue-500 p-1"><i class="fa-solid fa-pen"></i></button>`;
+                    let btns = ''; if(isZoneEditable(currentUser, z)) { if(canDeleteZone(currentUser.role)) btns += `<button onclick="window.deleteZone('${z.id}')" class="text-gray-400 hover:text-red-500 p-1"><i class="fa-solid fa-trash"></i></button>`; btns += `<button onclick='openZoneEdit(${JSON.stringify(z).replace(/'/g, "&#39;")})' class="text-gray-400 hover:text-blue-500 p-1"><i class="fa-solid fa-pen"></i></button>`; }
                     let siteNameDisplay = (currentSiteId === 'all') ? `<span class="text-[10px] bg-gray-200 px-1 rounded text-gray-600 mr-1">${siteMap[z.siteId] || 'Unknown'}</span>` : '';
-                    div.innerHTML = `<div onclick="map.fitBounds([${z.points.map(p=>`[${p[0]},${p[1]}]`).join(',')}])" class="flex-1 text-left">${siteNameDisplay}<span class="font-bold ${z.type==='danger'?'text-red-500':(z.type==='boundary'?'text-black':'text-blue-500')}">${z.name}</span><div class="text-[10px] text-gray-500">H: ${z.minAlt}~${z.maxAlt}m</div></div><div class="flex gap-1">${btns}</div>`;
-                    listEl.appendChild(div);
+                    div.innerHTML = `<div onclick="map.fitBounds([${z.points.map(p=>`[${p[0]},${p[1]}]`).join(',')}])" class="flex-1 text-left">${siteNameDisplay}<span class="font-bold ${z.type==='danger'?'text-red-500':(z.type==='boundary'?'text-black':'text-blue-500')}">${z.name}</span><div class="text-[10px] text-gray-500">H: ${z.minAlt}~${z.maxAlt}m / Time: ${z.timeLimit||60}s</div></div><div class="flex gap-1">${btns}</div>`; listEl.appendChild(div);
                 });
             }));
 
@@ -530,42 +277,34 @@
             unsubscribers.push(onSnapshot(qWorker, (snap) => {
                 mapLayers.users.forEach(m => map.removeLayer(m)); mapLayers.users = []; activeWorkers = [];
                 snap.forEach(doc => {
-                    const w = doc.data();
-                    const isMe = (w.id === currentUser.id);
-                    if(Date.now() - w.lastUpdate > 300000) return;
-                    if(!w.isVisible && !isMe) return;
-                    activeWorkers.push(w);
-
-                    let color = '#2563eb';
-                    if (w.role === 'super_admin' || w.role === 'admin') color = '#f97316';
-                    else if (w.role === 'safety') color = '#10b981';
-                    else if (w.role === 'health') color = '#ec4899';
+                    const w = doc.data(); const isMe = (w.id === currentUser.id);
+                    if(Date.now() - w.lastUpdate > 300000) return; if(!w.isVisible && !isMe) return; activeWorkers.push(w);
                     
-                    // Risk Group Logic (Green)
-                    const risks = ['C1', 'C2', 'D1', 'D2', 'R'];
-                    if(risks.includes(w.healthGrade) || w.hasBP || w.hasDiabetes || w.isElderly) color = '#22c55e'; // Green
-                    if(w.isSOS) color = '#ef4444';
+                    let color = '#2563eb'; // Default Worker Blue
+                    if(['super_admin', 'admin', 'safety', 'health', 'supervisor'].includes(w.role)) color = '#f97316'; // Orange
+                    else if (w.role === 'guard') color = '#eab308'; // Yellow
+                    const risks = ['C1', 'C2', 'D1', 'D2', 'R']; if((w.role === 'worker') && (risks.includes(w.healthGrade) || w.hasBP || w.hasDiabetes || w.isElderly)) color = '#22c55e'; // Green
+                    
+                    // Danger Color Logic (Purple -> Red)
+                    if (w.dangerEntryTime) {
+                        const elapsed = (Date.now() - w.dangerEntryTime) / 1000;
+                        const limit = w.dangerLimit || 60;
+                        if (elapsed > limit) color = '#ef4444'; 
+                        else color = '#9333ea'; // Purple
+                    }
+                    if(w.isSOS) color = '#ef4444'; 
 
-                    const marker = L.circleMarker([w.lat, w.lng], { radius: 6, color: color, fillColor: color, fillOpacity: 0.7 }).addTo(map);
-                    if(w.isSOS) { L.marker([w.lat, w.lng], { icon: L.divIcon({ className: 'sos-marker-ring', iconSize: [40,40], iconAnchor: [20,20] }) }).addTo(map); }
+                    const markerIcon = L.divIcon({ className: '', html: `<div class="custom-dot-marker" style="background-color: ${color};"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] });
+                    const isGodMode = (currentUser.role === 'super_admin');
+                    const marker = L.marker([w.lat, w.lng], { icon: markerIcon, draggable: isGodMode }).addTo(map);
+                    
+                    if(isGodMode) { marker.on('dragend', async (e) => { const newPos = e.target.getLatLng(); await updateDoc(doc(getColRef('workers'), w.id), { lat: newPos.lat, lng: newPos.lng }); }); }
+                    if(w.isSOS) { L.marker([w.lat, w.lng], { icon: L.divIcon({ className: 'sos-marker-ring', iconSize: [40,40], iconAnchor: [20,20] }) }).addTo(map); } 
                     else if (w.dangerEntryTime) { L.marker([w.lat, w.lng], { icon: L.divIcon({ className: 'danger-zone-ring', iconSize: [40,40], iconAnchor: [20,20] }) }).addTo(map); }
                     
-                    // Popup RBAC
                     let popup = `<b>${w.name}</b> <span class="text-xs text-gray-500">(${getRoleName(w.role)})</span>`;
-                    if (isManager(currentUser.role)) {
-                        popup += `<div class="text-xs border-t mt-1 pt-1">
-                            직종: ${w.job||'-'} / 장비: ${w.equip||'-'}<br>
-                            연락처: ${w.personalInfo||'-'}<br>
-                            건강등급: <span class="font-bold ${risks.includes(w.healthGrade)?'text-red-500':''}">${w.healthGrade||'A'}</span>
-                            ${w.checkupDate ? `<br>검진일: ${w.checkupDate}` : ''}
-                            ${w.hasBP ? '<span class="text-red-500 font-bold ml-1">고혈압</span>' : ''}
-                            ${w.hasDiabetes ? '<span class="text-red-500 font-bold ml-1">당뇨</span>' : ''}
-                            ${w.isElderly ? '<span class="text-blue-500 font-bold ml-1">고령자</span>' : ''}
-                            ${w.confinedTrained ? '<br><span class="text-green-600">✅ 밀폐교육 이수</span>' : '<br><span class="text-gray-400">밀폐교육 미이수</span>'}
-                        </div>`;
-                    }
-                    marker.bindPopup(popup);
-                    mapLayers.users.push(marker);
+                    if (isManager(currentUser.role)) { popup += `<div class="text-xs border-t mt-1 pt-1">직종: ${w.job||'-'} / 장비: ${w.equip||'-'}<br>연락처: ${w.personalInfo||'-'}<br>건강등급: <span class="font-bold ${risks.includes(w.healthGrade)?'text-red-500':''}">${w.healthGrade||'A'}</span>${w.checkupDate ? `<br>검진일: ${w.checkupDate}` : ''}${w.hasBP ? '<span class="text-red-500 font-bold ml-1">고혈압</span>' : ''}${w.hasDiabetes ? '<span class="text-red-500 font-bold ml-1">당뇨</span>' : ''}${w.isElderly ? '<span class="text-blue-500 font-bold ml-1">고령자</span>' : ''}${w.confinedTrained ? '<br><span class="text-green-600">✅ 밀폐교육 이수</span>' : '<br><span class="text-gray-400">밀폐교육 미이수</span>'}</div>`; }
+                    marker.bindPopup(popup); mapLayers.users.push(marker);
                 });
                 renderDangerList(); updateStats(); checkSOS();
             }));
@@ -573,51 +312,45 @@
             if(isSiteAdmin(currentUser.role)) {
                 let qUsers = getColRef('users'); if(currentSiteId !== 'all') qUsers = query(qUsers, where('siteId', '==', currentSiteId));
                 unsubscribers.push(onSnapshot(qUsers, (snap) => {
-                    const pList = document.getElementById('pending-list'); const aList = document.getElementById('approved-list');
-                    pList.innerHTML = ''; aList.innerHTML = '';
-                    snap.forEach(doc => {
-                        const u = { ...doc.data(), docId: doc.id };
-                        if(u.role === 'super_admin') return; 
-                        const item = document.createElement('div');
-                        item.className = "bg-white p-2 border rounded mb-1 flex justify-between items-center";
-                        item.innerHTML = `<div><span class="font-bold text-gray-700">${u.name}</span> <span class="text-xs text-blue-500">(${getRoleName(u.role)})</span></div>`;
-                        const actions = document.createElement('div');
-                        if(!u.approved) {
-                             const btn = document.createElement('button'); btn.innerText = "승인"; btn.className = "text-blue-600 font-bold mr-2"; btn.onclick = () => approveUser(u.docId); actions.appendChild(btn); pList.appendChild(item);
-                        } else {
-                             if(currentUser.role === 'super_admin' || currentUser.role === 'admin') {
-                                 const btn = document.createElement('button'); btn.innerHTML = '<i class="fa-solid fa-trash"></i>'; btn.className = "text-red-500"; btn.onclick = () => deleteUser(u.docId); actions.appendChild(btn);
-                             }
-                             item.onclick = (e) => { if(e.target.tagName !== 'BUTTON') window.openInfoModal(u); }; aList.appendChild(item);
-                        }
-                        item.appendChild(actions);
-                    });
+                    const pList = document.getElementById('pending-list'); const aList = document.getElementById('approved-list'); pList.innerHTML = ''; aList.innerHTML = '';
+                    snap.forEach(doc => { const u = { ...doc.data(), docId: doc.id }; if(u.role === 'super_admin') return; const item = document.createElement('div'); item.className = "bg-white p-2 border rounded mb-1 flex justify-between items-center"; item.innerHTML = `<div><span class="font-bold text-gray-700">${u.name}</span> <span class="text-xs text-blue-500">(${getRoleName(u.role)})</span></div>`; const actions = document.createElement('div'); if(!u.approved) { const btn = document.createElement('button'); btn.innerText = "승인"; btn.className = "text-blue-600 font-bold mr-2"; btn.onclick = () => approveUser(u.docId); actions.appendChild(btn); pList.appendChild(item); } else { if(currentUser.role === 'super_admin' || currentUser.role === 'admin') { const btn = document.createElement('button'); btn.innerHTML = '<i class="fa-solid fa-trash"></i>'; btn.className = "text-red-500"; btn.onclick = () => deleteUser(u.docId); actions.appendChild(btn); } item.onclick = (e) => { if(e.target.tagName !== 'BUTTON') window.openInfoModal(u); }; aList.appendChild(item); } item.appendChild(actions); });
                 }));
             }
         }
 
-        window.triggerSOS = async () => {
-            if(!currentUser) return;
-            const btn = document.getElementById('btn-sos'); const isSOSNow = btn.classList.contains('active');
-            if(!isSOSNow) { btn.classList.add('active'); showToast("🆘 구조 요청(SOS)을 전송합니다!", "danger"); } 
-            else { btn.classList.remove('active'); showToast("SOS 상황을 해제합니다.", "info"); }
-            await updateDoc(doc(getColRef('workers'), currentUser.id), { isSOS: !isSOSNow });
-        };
+        window.triggerSOS = async () => { if(!currentUser) return; const btn = document.getElementById('btn-sos'); const isSOSNow = btn.classList.contains('active'); if(!isSOSNow) { btn.classList.add('active'); showToast("🆘 구조 요청(SOS)을 전송합니다!", "danger"); } else { btn.classList.remove('active'); showToast("SOS 상황을 해제합니다.", "info"); } await updateDoc(doc(getColRef('workers'), currentUser.id), { isSOS: !isSOSNow }); };
+        function checkSOS() { const sosWorkers = activeWorkers.filter(w => w.isSOS); const overlay = document.getElementById('sos-overlay'); const btn = document.getElementById('btn-sos'); const myStatus = sosWorkers.find(w => w.id === currentUser.id); if(myStatus && !btn.classList.contains('active')) btn.classList.add('active'); if(!myStatus && btn.classList.contains('active')) btn.classList.remove('active'); if(sosWorkers.length > 0) { if(overlay.classList.contains('hidden')) { overlay.classList.remove('hidden'); overlay.classList.add('sos-active-bg'); } if(!sosInterval) { triggerSOSAlarm(sosWorkers); sosInterval = setInterval(() => triggerSOSAlarm(sosWorkers), 10000); } } else { overlay.classList.add('hidden'); overlay.classList.remove('sos-active-bg'); if(sosInterval) { clearInterval(sosInterval); sosInterval = null; } } }
+        function triggerSOSAlarm(workers) { if(navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 1000]); showToast(`🚨 긴급! ${workers.map(u => u.name).join(', ')} 님이 구조 요청 중!`, "danger"); }
 
-        function checkSOS() {
-            const sosWorkers = activeWorkers.filter(w => w.isSOS); const overlay = document.getElementById('sos-overlay'); const btn = document.getElementById('btn-sos');
-            const myStatus = sosWorkers.find(w => w.id === currentUser.id);
-            if(myStatus && !btn.classList.contains('active')) btn.classList.add('active');
-            if(!myStatus && btn.classList.contains('active')) btn.classList.remove('active');
-            if(sosWorkers.length > 0) {
-                if(overlay.classList.contains('hidden')) { overlay.classList.remove('hidden'); overlay.classList.add('sos-active-bg'); }
-                if(!sosInterval) { triggerSOSAlarm(sosWorkers); sosInterval = setInterval(() => triggerSOSAlarm(sosWorkers), 10000); }
-            } else {
-                overlay.classList.add('hidden'); overlay.classList.remove('sos-active-bg');
-                if(sosInterval) { clearInterval(sosInterval); sosInterval = null; }
+        function checkDangerOvertime() {
+            if(!activeWorkers.length) return;
+            const now = Date.now();
+            let hasOvertime = false;
+            activeWorkers.forEach(w => {
+                if (w.dangerEntryTime) {
+                    const elapsed = (now - w.dangerEntryTime) / 1000;
+                    const limit = w.dangerLimit || 60;
+                    if (elapsed > limit) { hasOvertime = true; }
+                }
+            });
+            if (hasOvertime) {
+                if(Date.now() % 10000 < 1000) { 
+                    if(navigator.vibrate) navigator.vibrate(500);
+                    showToast("🚨 제한 시간 초과 인원 발생! 즉시 확인하세요.", "danger");
+                }
             }
         }
-        function triggerSOSAlarm(workers) { if(navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 1000]); showToast(`🚨 긴급! ${workers.map(u => u.name).join(', ')} 님이 구조 요청 중!`, "danger"); }
+
+        // Pocket Mode (v11.1)
+        window.togglePocketMode = () => {
+            const overlay = document.getElementById('pocket-mode-overlay');
+            if(overlay.classList.contains('pocket-hidden')) { overlay.classList.remove('pocket-hidden'); overlay.classList.add('pocket-active'); } 
+            else { overlay.classList.remove('pocket-active'); overlay.classList.add('pocket-hidden'); }
+        };
+        const unlockBtn = document.getElementById('btn-unlock-screen'); let pressTimer;
+        unlockBtn.addEventListener('mousedown', () => pressTimer = setTimeout(window.togglePocketMode, 800));
+        unlockBtn.addEventListener('touchstart', () => pressTimer = setTimeout(window.togglePocketMode, 800));
+        unlockBtn.addEventListener('mouseup', () => clearTimeout(pressTimer)); unlockBtn.addEventListener('touchend', () => clearTimeout(pressTimer));
 
         window.openCreateSiteModal = () => { document.getElementById('site-modal-title').innerText = "새 현장 생성"; document.getElementById('edit-site-id').value = ""; document.getElementById('new-site-name').value = ""; document.getElementById('createSiteModal').classList.remove('hidden'); };
         window.openEditSiteModal = () => { if(currentSiteId === 'all') return alert("수정할 개별 현장을 선택해주세요."); const siteName = siteMap[currentSiteId]; document.getElementById('site-modal-title').innerText = "현장 정보 수정"; document.getElementById('edit-site-id').value = currentSiteId; document.getElementById('new-site-name').value = siteName; document.getElementById('createSiteModal').classList.remove('hidden'); };
@@ -630,14 +363,12 @@
             if(mapLayers.tempLine) { map.removeLayer(mapLayers.tempLine); mapLayers.tempLine = null; }
             document.getElementById('tool-default').classList.add('hidden'); document.getElementById('tool-drawing').classList.remove('hidden'); 
             mapLayers.tempLine = L.polyline([], {color: '#ef4444', dashArray: '5, 10', weight: 2}).addTo(map);
-            // Lock existing zones to prevent click interference
-            mapLayers.zones.forEach(layer => layer.getElement().style.pointerEvents = 'none');
+            mapLayers.zones.forEach(layer => layer.getElement().style.pointerEvents = 'none'); 
         };
         window.cancelDrawing = () => { 
             isDrawing = false; document.getElementById('tool-default').classList.remove('hidden'); document.getElementById('tool-drawing').classList.add('hidden'); 
             mapLayers.temp.forEach(l=>map.removeLayer(l)); mapLayers.temp=[]; if(mapLayers.tempLine) { map.removeLayer(mapLayers.tempLine); mapLayers.tempLine = null; }
-            // Unlock zones
-            mapLayers.zones.forEach(layer => layer.getElement().style.pointerEvents = 'auto');
+            mapLayers.zones.forEach(layer => layer.getElement().style.pointerEvents = 'auto'); 
         };
         window.addDrawingPoint = (latlng) => { 
             if(boundaryPolygon) {
@@ -647,17 +378,19 @@
             drawingPoints.push([latlng.lat, latlng.lng]); const m = L.circleMarker(latlng, {radius:4, color: 'red'}).addTo(map); mapLayers.temp.push(m); if(mapLayers.tempLine) mapLayers.tempLine.setLatLngs(drawingPoints);
         };
         document.getElementById('btn-finish-draw').onclick = () => { 
-            if(drawingPoints.length<3) return alert("3점 이상"); editingZoneId = null; document.getElementById('zone-modal-title').innerText = "새 구역 저장"; document.getElementById('zone-name').value = "";
+            if(drawingPoints.length<3) return alert("3점 이상"); editingZoneId = null; document.getElementById('zone-modal-title').innerText = "새 구역 저장"; document.getElementById('zone-name').value = ""; document.getElementById('btn-redraw-zone').classList.add('hidden');
             const hasZones = zones.length > 0; const typeSelect = document.getElementById('zone-type'); const infoText = document.getElementById('zone-type-info');
             if(!hasZones) { typeSelect.value = 'boundary'; infoText.classList.remove('hidden'); } else { typeSelect.value = 'normal'; infoText.classList.add('hidden'); }
             window.handleZoneTypeChange(); document.getElementById('zoneModal').classList.remove('hidden'); 
         };
         window.handleZoneTypeChange = () => { const type = document.getElementById('zone-type').value; const heightArea = document.getElementById('height-config-area'); if(type === 'danger') heightArea.classList.remove('hidden'); else heightArea.classList.add('hidden'); }
-        window.openZoneEdit = (z) => { if(!canCreateZone(currentUser.role)) return; editingZoneId = z.id; drawingPoints = z.points; document.getElementById('zone-modal-title').innerText = "구역 정보 수정"; document.getElementById('zone-name').value = z.name; document.getElementById('zone-type').value = z.type || 'normal'; document.getElementById('zone-alt-min').value = z.minAlt; document.getElementById('zone-alt-max').value = z.maxAlt; document.getElementById('zone-type-info').classList.add('hidden'); window.handleZoneTypeChange(); document.getElementById('zoneModal').classList.remove('hidden'); };
+        window.openZoneEdit = (z) => { if(!isZoneEditable(currentUser, z)) return; editingZoneId = z.id; drawingPoints = z.points; document.getElementById('zone-modal-title').innerText = "구역 정보 수정"; document.getElementById('zone-name').value = z.name; document.getElementById('zone-type').value = z.type || 'normal'; document.getElementById('zone-alt-min').value = z.minAlt; document.getElementById('zone-alt-max').value = z.maxAlt; document.getElementById('zone-time-limit').value = z.timeLimit || 60; document.getElementById('zone-type-info').classList.add('hidden'); document.getElementById('btn-redraw-zone').classList.remove('hidden'); window.handleZoneTypeChange(); document.getElementById('zoneModal').classList.remove('hidden'); };
+        window.redrawZone = () => { if(!confirm("현재 구역의 모양을 새로 그리시겠습니까?")) return; document.getElementById('zoneModal').classList.add('hidden'); isDrawing = true; drawingPoints = []; mapLayers.temp.forEach(l => map.removeLayer(l)); mapLayers.temp = []; if(mapLayers.tempLine) { map.removeLayer(mapLayers.tempLine); mapLayers.tempLine = null; } document.getElementById('tool-default').classList.add('hidden'); document.getElementById('tool-drawing').classList.remove('hidden'); mapLayers.tempLine = L.polyline([], {color: '#ef4444', dashArray: '5, 10', weight: 2}).addTo(map); mapLayers.zones.forEach(layer => layer.getElement().style.pointerEvents = 'none'); showToast("✏️ 지도에 점을 찍어 영역을 새로 그리세요", "info"); };
         window.saveZone = async () => {
             const name = document.getElementById('zone-name').value; const type = document.getElementById('zone-type').value;
             const minAlt = document.getElementById('zone-alt-min').value; const maxAlt = document.getElementById('zone-alt-max').value;
-            const zoneData = { name, points: JSON.stringify(drawingPoints), type, isConfined: (type === 'danger'), minAlt: parseInt(minAlt), maxAlt: parseInt(maxAlt), siteId: currentSiteId };
+            const limit = document.getElementById('zone-time-limit').value;
+            const zoneData = { name, points: JSON.stringify(drawingPoints), type, isConfined: (type === 'danger'), minAlt: parseInt(minAlt), maxAlt: parseInt(maxAlt), timeLimit: parseInt(limit), siteId: currentSiteId };
             if(editingZoneId) await updateDoc(doc(getColRef('zones'), editingZoneId), zoneData); else await addDoc(getColRef('zones'), zoneData);
             cancelDrawing(); document.getElementById('zoneModal').classList.add('hidden');
         };
@@ -693,56 +426,66 @@
             await updateDoc(doc(getColRef('users'), uid), data); document.getElementById('userInfoModal').classList.add('hidden');
         };
 
-        // Test Data Gen
         window.createTestAccounts = async () => {
             if(!confirm("현재 선택된 현장에 테스트용 계정들을 생성하시겠습니까?")) return;
             const targetSite = (currentSiteId === 'all') ? (Object.keys(siteMap)[0]) : currentSiteId;
             if(!targetSite) return alert("생성할 현장이 없습니다. 현장을 먼저 생성해주세요.");
-            
-            const roles = [
-                {id: 'test_admin', name: '김소장', role: 'admin'}, {id: 'test_safe', name: '이안전', role: 'safety'},
-                {id: 'test_health', name: '박보건', role: 'health'}, {id: 'test_super', name: '최감독', role: 'supervisor'},
-                {id: 'test_guard', name: '정경비', role: 'guard'}, {id: 'test_worker', name: '강근로', role: 'worker'},
-                {id: 'test_pending', name: '대기자', role: 'worker', approved: false}
-            ];
-            
-            let count = 0;
-            for(const r of roles) {
-                const q = query(getColRef('users'), where('id', '==', r.id));
-                const snap = await getDocs(q);
-                if(snap.empty) {
-                    await addDoc(getColRef('users'), { id: r.id, pw: '1234', name: r.name, role: r.role, siteId: targetSite, approved: r.approved !== false });
-                    count++;
-                }
+            const center = map.getCenter();
+            const genLoc = () => ({ lat: center.lat + (Math.random() - 0.5) * 0.002, lng: center.lng + (Math.random() - 0.5) * 0.002 });
+            const roles = [ {id: 'test_admin', name: '김소장', role: 'admin'}, {id: 'test_safe', name: '이안전', role: 'safety'}, {id: 'test_health', name: '박보건', role: 'health'}, {id: 'test_super', name: '최감독', role: 'supervisor'}, {id: 'test_guard', name: '정경비', role: 'guard'}, {id: 'test_worker', name: '강근로', role: 'worker'}, {id: 'test_pending', name: '대기자', role: 'worker', approved: false} ];
+            let count = 0; 
+            for(const r of roles) { 
+                const q = query(getColRef('users'), where('id', '==', r.id)); const snap = await getDocs(q); 
+                if(snap.empty) { 
+                    await addDoc(getColRef('users'), { id: r.id, pw: '1234', name: r.name, role: r.role, siteId: targetSite, approved: r.approved !== false }); 
+                    const loc = genLoc();
+                    await setDoc(doc(getColRef('workers'), r.id), { id: r.id, name: r.name, role: r.role, siteId: targetSite, lat: loc.lat, lng: loc.lng, lastUpdate: Date.now(), isVisible: true }, {merge: true});
+                    count++; 
+                } 
             }
             alert(`${count}개의 테스트 계정이 생성되었습니다. (PW: 1234)`);
         };
-
         window.openDeleteSelectionModal = () => document.getElementById('deleteSelectionModal').classList.remove('hidden');
         
-        // GPS & Utils
         function startWebGPS() { if (!navigator.geolocation) return; gpsWatchId = navigator.geolocation.watchPosition((pos) => { handlePositionUpdate(pos.coords); }, null, { enableHighAccuracy: true }); }
         function handlePositionUpdate(coords) {
             const lat = coords.latitude; const lng = coords.longitude; const alt = coords.altitude ? Math.round(coords.altitude) : currentAltitude;
             if(isFirstGPSFix) { map.setView([lat, lng], 18); isFirstGPSFix=false; }
-            let inDanger = false, zoneName = null, inAnyZone2D = false;
-            zones.forEach(z => {
-                if(isPointInPolygon([lat, lng], z.points)) { inAnyZone2D = true; if(alt >= z.minAlt && alt <= z.maxAlt) { if(z.isConfined) inDanger = true; zoneName = z.name; } }
+            let inDanger = false, zoneName = null, limit = 60, inAnyZone2D = false;
+            
+            zones.forEach(z => { 
+                if(isPointInPolygon([lat, lng], z.points)) { 
+                    inAnyZone2D = true; 
+                    if(alt >= z.minAlt && alt <= z.maxAlt) { 
+                        if(z.isConfined) { inDanger = true; zoneName = z.name; limit = z.timeLimit || 60; } 
+                    } 
+                } 
             });
+            
+            // Smart Update for Danger Time (Check local cache via activeWorkers)
+            const me = activeWorkers.find(w => w.id === currentUser.id);
+            let currentEntryTime = me ? me.dangerEntryTime : null;
+            if (inDanger) { if (!currentEntryTime) currentEntryTime = Date.now(); } 
+            else { if (currentEntryTime) showToast("✅ 상황 종료: 안전 구역으로 복귀함", "success"); currentEntryTime = null; }
+
             const dist = getDistanceFromLatLonInKm(lat, lng, SITE_CENTER.lat, SITE_CENTER.lng); const isOut = (dist > MAX_DISTANCE_KM) && !inAnyZone2D;
             if (isOut && !isOutOfRange) { isOutOfRange = true; showToast("🚫 작업 반경 이탈", "warning"); } else if (!isOut && isOutOfRange) { isOutOfRange = false; showToast("✅ 복귀 완료", "success"); }
+            
             document.getElementById('zone-status-display').innerText = zoneName ? `구역: ${zoneName}` : "구역: 없음";
             const userRef = doc(getColRef('workers'), currentUser.id);
-            setDoc(userRef, { id: currentUser.id, name: currentUser.name, role: currentUser.role, siteId: currentUser.siteId, lat, lng, alt, lastUpdate: Date.now(), isVisible: !isOut, dangerEntryTime: inDanger ? Date.now() : null, currentZoneName: zoneName }, { merge: true });
+            setDoc(userRef, { id: currentUser.id, name: currentUser.name, role: currentUser.role, siteId: currentUser.siteId, lat, lng, alt, lastUpdate: Date.now(), isVisible: !isOut, dangerEntryTime: currentEntryTime, dangerLimit: limit, currentZoneName: zoneName }, { merge: true });
         }
-        function startGPS() { if(window.Capacitor) { /* App Logic */ } else startWebGPS(); }
+        function startGPS() { if(window.Capacitor) { /* App */ } else startWebGPS(); }
         window.refreshGPS = () => { if(gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId=null; setTimeout(startGPS, 500); };
         
         function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) { var R = 6371; var dLat = (lat2-lat1)*(Math.PI/180); var dLon = (lon2-lon1)*(Math.PI/180); var a = Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*(Math.PI/180))*Math.cos(lat2*(Math.PI/180))*Math.sin(dLon/2)*Math.sin(dLon/2); return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); }
         function isPointInPolygon(p, vs) { var x = p[0], y = p[1]; var inside = false; for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) { var xi = vs[i][0], yi = vs[i][1]; var xj = vs[j][0], yj = vs[j][1]; var intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi); if (intersect) inside = !inside; } return inside; }
         function getRoleName(r) { const names = {super_admin:'최고관리자', admin:'현장소장', safety:'안전관리자', health:'보건관리자', supervisor:'관리감독자', guard:'경비', worker:'근로자'}; return names[r] || r; }
         function updateStats() { let t=0,d=0,s=0,a=0,o=0; activeWorkers.forEach(w=>{t++; if(w.isSOS)s++; if(w.isVisible)a++; else o++; if(w.dangerEntryTime)d++;}); document.getElementById('stat-total').innerText=t; document.getElementById('stat-active').innerText=a; document.getElementById('stat-out').innerText=o; document.getElementById('stat-danger').innerText=d; document.getElementById('mobile-stat-total').innerText=t; document.getElementById('mobile-stat-active').innerText=a; document.getElementById('mobile-stat-out').innerText=o; document.getElementById('mobile-stat-danger').innerText=d; }
-        function renderDangerList() { const list=document.getElementById('danger-worker-list'); const panel=document.getElementById('danger-status-panel'); const d=activeWorkers.filter(w=>w.dangerEntryTime); list.innerHTML=''; if(d.length>0){ panel.classList.remove('hidden'); d.forEach(w=>{ const sec=Math.floor((Date.now()-w.dangerEntryTime)/1000); list.innerHTML+=`<div class="flex justify-between items-center bg-red-50 p-1 rounded"><span>${w.name} (${w.currentZoneName||'위험'})</span><span class="font-bold text-red-600">${sec}초</span></div>`; }); } else panel.classList.add('hidden'); }
+        function renderDangerList() { 
+            const list=document.getElementById('danger-worker-list'); const panel=document.getElementById('danger-status-panel'); const d=activeWorkers.filter(w=>w.dangerEntryTime); list.innerHTML=''; 
+            if(d.length>0){ panel.classList.remove('hidden'); d.forEach(w=>{ const elapsed = Math.floor((Date.now()-w.dangerEntryTime)/1000); const limit = w.dangerLimit || 60; const isOver = elapsed > limit; const style = isOver ? 'text-red-600 font-extrabold animate-pulse' : 'text-purple-600 font-bold'; list.innerHTML+=`<div class="flex justify-between items-center bg-gray-50 p-1 rounded border-b"><span>${w.name} (${w.currentZoneName})</span><span class="${style}">${elapsed}s / ${limit}s</span></div>`; }); } else panel.classList.add('hidden'); 
+        }
         function showToast(msg,type){ const c=document.getElementById('toast-container'); const t=document.createElement('div'); t.className=`toast ${type}`; let icon='fa-info-circle text-blue-500'; if(type==='danger') icon='fa-circle-exclamation text-red-500'; else if(type==='success') icon='fa-circle-check text-green-500'; else if(type==='warning') icon='fa-triangle-exclamation text-orange-500'; t.innerHTML=`<i class="fa-solid ${icon}"></i><div><div class="font-bold text-gray-800">알림</div><div class="text-sm text-gray-600">${msg}</div></div>`; c.appendChild(t); setTimeout(()=>t.remove(),4000); }
 
         document.getElementById('btn-login').onclick = handleLogin; document.getElementById('btn-signup').onclick = handleSignup; document.getElementById('tab-login').onclick = () => switchAuth('login'); document.getElementById('tab-signup').onclick = () => switchAuth('signup'); document.getElementById('alt-slider').oninput = (e) => { currentAltitude = parseInt(e.target.value); document.getElementById('current-alt-display').innerText = `${currentAltitude}m`; };
