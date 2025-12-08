@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 시스템 v15.0 (데이터동기화)</title>
+    <title>스마트 안전 관제 시스템 v15.1 (완전동기화)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -128,7 +128,7 @@
 
     <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-90 hidden">
         <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md m-4 flex flex-col items-center max-h-[90vh] overflow-y-auto custom-scroll relative">
-            <div class="mb-6 flex flex-col items-center"><img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon"><h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1><p class="text-sm text-gray-500">System Admin v15.0</p></div>
+            <div class="mb-6 flex flex-col items-center"><img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon"><h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1><p class="text-sm text-gray-500">System Admin v15.1</p></div>
             <div class="flex border-b mb-4 w-full"><button id="tab-login" class="flex-1 py-2 font-bold text-blue-600 border-b-2 border-blue-600">로그인</button><button id="tab-signup" class="flex-1 py-2 text-gray-500 hover:text-blue-500">회원가입</button></div>
             <div id="form-login" class="space-y-4 w-full"><input type="text" id="login-id" placeholder="아이디" class="w-full border p-3 rounded"><input type="password" id="login-pw" placeholder="비밀번호" class="w-full border p-3 rounded"><div class="flex items-center gap-2"><input type="checkbox" id="auto-login-check" class="w-4 h-4"><label for="auto-login-check" class="text-sm text-gray-600">자동 로그인</label></div><button id="btn-login" class="w-full bg-blue-800 text-white py-3 rounded font-bold hover:bg-blue-900 transition shadow-lg">로그인</button></div>
             <div id="form-signup" class="space-y-4 hidden w-full"><input type="text" id="reg-id" placeholder="아이디" class="w-full border p-3 rounded"><input type="text" id="reg-name" placeholder="이름 (실명)" class="w-full border p-3 rounded"><input type="password" id="reg-pw" placeholder="비밀번호" class="w-full border p-3 rounded"><div class="border p-3 rounded bg-gray-50"><label class="text-xs font-bold text-gray-500 block mb-1">소속 현장 선택</label><select id="reg-site" class="w-full border p-2 rounded bg-white"></select></div><select id="reg-role" class="w-full border p-3 rounded bg-white"><option value="worker">근로자</option><option value="guard">경비</option><option value="supervisor">관리감독자</option><option value="safety">안전관리자</option><option value="health">보건관리자</option><option value="admin">현장소장</option></select><button id="btn-signup" class="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700 transition">가입 신청</button></div>
@@ -264,6 +264,7 @@
         let unsubscribers = [], editingZoneId = null, siteMap = {}, sosInterval = null, boundaryPolygon = null;
         let offlineAlertsSent = {}; 
         let simulationInterval = null;
+        let validUserIds = new Set(); // To sync map with user list
 
         const getColRef = (name) => collection(db, 'artifacts', appId, 'public', 'data', name);
         const isManager = (role) => ['super_admin', 'admin', 'safety', 'health', 'supervisor'].includes(role);
@@ -297,15 +298,12 @@
             if(currentUser.role === 'worker' || currentUser.role === 'guard') { document.getElementById('btn-my-info').classList.remove('hidden'); document.getElementById('commute-panel').classList.remove('hidden'); updateCommuteUI(u); } 
             enableNoSleep(); initMap(); subscribeData(); startGPS(); 
             setInterval(renderDangerList, 1000); setInterval(checkDangerOvertime, 1000); 
-            
-            // Start Automatic Heartbeat for User and Simulation for Dummies
             startHeartbeat();
             if(isManager(currentUser.role)) startSimulation();
         }
 
         // --- Heartbeat & Simulation ---
         function startHeartbeat() {
-            // Update my own timestamp every 60 seconds even if GPS doesn't move
             setInterval(async () => {
                 if(currentUser) {
                     await updateDoc(doc(getColRef('workers'), currentUser.id), { lastUpdate: Date.now() });
@@ -315,12 +313,9 @@
 
         function startSimulation() {
             if(simulationInterval) clearInterval(simulationInterval);
-            // Simulate dummy movement every 3 seconds
             simulationInterval = setInterval(() => {
                 activeWorkers.forEach(w => {
-                    // Only simulate test accounts (starting with 'test_') EXCEPT 'test_signal'
                     if(w.id.startsWith('test_') && w.id !== 'test_signal') {
-                        // Small random wiggle
                         const newLat = w.lat + (Math.random() - 0.5) * 0.0001;
                         const newLng = w.lng + (Math.random() - 0.5) * 0.0001;
                         updateDoc(doc(getColRef('workers'), w.id), { lat: newLat, lng: newLng, lastUpdate: Date.now() });
@@ -381,15 +376,57 @@
                 });
             }));
 
+            // Sync User List First
+            let qUsers = getColRef('users'); if(currentSiteId !== 'all') qUsers = query(qUsers, where('siteId', '==', currentSiteId));
+            unsubscribers.push(onSnapshot(qUsers, (snap) => {
+                validUserIds.clear(); // Reset valid users
+                if(isSiteAdmin(currentUser.role)) {
+                    const pList = document.getElementById('pending-list'); const aList = document.getElementById('approved-list'); pList.innerHTML = ''; aList.innerHTML = '';
+                    snap.forEach(doc => { 
+                        const u = { ...doc.data(), docId: doc.id }; 
+                        if(u.approved) validUserIds.add(u.id); // Add to valid set
+                        if(u.role === 'super_admin') return; 
+                        
+                        const item = document.createElement('div'); item.className = "bg-white p-2 border rounded mb-1 flex justify-between items-center"; item.innerHTML = `<div><span class="font-bold text-gray-700">${u.name}</span> <span class="text-xs text-blue-500">(${getRoleName(u.role)})</span></div>`; const actions = document.createElement('div'); actions.className="flex items-center gap-2"; 
+                        if(!u.approved) { const btn = document.createElement('button'); btn.innerText = "승인"; btn.className = "text-blue-600 font-bold mr-2"; btn.onclick = () => approveUser(u.docId); actions.appendChild(btn); pList.appendChild(item); } 
+                        else { 
+                            if(u.role === 'worker') {
+                                const healthCheck = document.createElement('input'); healthCheck.type='checkbox'; healthCheck.className="w-4 h-4 accent-green-500 mr-2"; healthCheck.title="집중 건강 관리 대상";
+                                if(u.isHealthCareTarget) healthCheck.checked = true;
+                                healthCheck.onclick = (e) => { e.stopPropagation(); toggleHealthCare(u.docId, u.id, e.target.checked); };
+                                actions.appendChild(healthCheck);
+                            }
+                            if(currentUser.role === 'super_admin' || currentUser.role === 'admin') { 
+                                const btn = document.createElement('button'); btn.innerHTML = '<i class="fa-solid fa-trash"></i>'; btn.className = "text-red-500"; 
+                                btn.onclick = (e) => { e.stopPropagation(); deleteUser(u.docId, u.id); }; 
+                                actions.appendChild(btn); 
+                            } 
+                            item.onclick = (e) => { if(e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') window.openInfoModal(u); }; aList.appendChild(item); 
+                        } item.appendChild(actions); 
+                    });
+                } else {
+                    snap.forEach(d => { if(d.data().approved) validUserIds.add(d.data().id); });
+                }
+            }));
+
+            // Map Listener (Cross-Check with validUserIds)
             let qWorker = getColRef('workers'); if(currentSiteId !== 'all') qWorker = query(qWorker, where('siteId', '==', currentSiteId));
             unsubscribers.push(onSnapshot(qWorker, (snap) => {
                 mapLayers.users.forEach(m => map.removeLayer(m)); mapLayers.users = []; activeWorkers = [];
-                snap.forEach(doc => {
-                    const w = doc.data(); const isMe = (w.id === currentUser.id);
-                    if(isMe && currentUser) { currentUser = { ...currentUser, ...w }; updateCommuteUI(currentUser); } // Update self
+                snap.forEach(async (docSnap) => {
+                    const w = docSnap.data(); const isMe = (w.id === currentUser.id);
+                    
+                    // Ghost Data Check: If not me, and not in validUserIds, it's a ghost.
+                    if (!isMe && !validUserIds.has(w.id)) {
+                        // Optional: Auto-delete ghost data (Self-cleaning)
+                        // try { await deleteDoc(doc(getColRef('workers'), w.id)); } catch(e) {}
+                        return; // Skip rendering
+                    }
+
+                    if(isMe && currentUser) { currentUser = { ...currentUser, ...w }; updateCommuteUI(currentUser); } 
 
                     const timeDiff = Date.now() - w.lastUpdate;
-                    if(timeDiff > 43200000) return; // Hide > 12h
+                    if(timeDiff > 43200000) return; 
                     const isDisconnected = timeDiff > DISCONNECT_THRESHOLD;
                     activeWorkers.push({ ...w, isDisconnected });
 
@@ -460,29 +497,6 @@
                         let color = 'text-gray-600'; if(l.type==='sos') color='text-red-600 font-bold'; else if(l.type==='danger') color='text-purple-600';
                         logList.innerHTML += `<div class="bg-white p-2 border-b mb-1"><div class="text-[10px] text-gray-400">${date}</div><div class="${color}">[${l.type.toUpperCase()}] ${l.msg}</div></div>`;
                     });
-                }));
-            }
-
-            if(isSiteAdmin(currentUser.role)) {
-                let qUsers = getColRef('users'); if(currentSiteId !== 'all') qUsers = query(qUsers, where('siteId', '==', currentSiteId));
-                unsubscribers.push(onSnapshot(qUsers, (snap) => {
-                    const pList = document.getElementById('pending-list'); const aList = document.getElementById('approved-list'); pList.innerHTML = ''; aList.innerHTML = '';
-                    snap.forEach(doc => { const u = { ...doc.data(), docId: doc.id }; if(u.role === 'super_admin') return; const item = document.createElement('div'); item.className = "bg-white p-2 border rounded mb-1 flex justify-between items-center"; item.innerHTML = `<div><span class="font-bold text-gray-700">${u.name}</span> <span class="text-xs text-blue-500">(${getRoleName(u.role)})</span></div>`; const actions = document.createElement('div'); actions.className="flex items-center gap-2"; 
-                    if(!u.approved) { const btn = document.createElement('button'); btn.innerText = "승인"; btn.className = "text-blue-600 font-bold mr-2"; btn.onclick = () => approveUser(u.docId); actions.appendChild(btn); pList.appendChild(item); } 
-                    else { 
-                        if(u.role === 'worker') {
-                            const healthCheck = document.createElement('input'); healthCheck.type='checkbox'; healthCheck.className="w-4 h-4 accent-green-500 mr-2"; healthCheck.title="집중 건강 관리 대상";
-                            if(u.isHealthCareTarget) healthCheck.checked = true;
-                            healthCheck.onclick = (e) => { e.stopPropagation(); toggleHealthCare(u.docId, u.id, e.target.checked); };
-                            actions.appendChild(healthCheck);
-                        }
-                        if(currentUser.role === 'super_admin' || currentUser.role === 'admin') { 
-                            const btn = document.createElement('button'); btn.innerHTML = '<i class="fa-solid fa-trash"></i>'; btn.className = "text-red-500"; 
-                            btn.onclick = (e) => { e.stopPropagation(); deleteUser(u.docId, u.id); }; // Pass ID for cleanup
-                            actions.appendChild(btn); 
-                        } 
-                        item.onclick = (e) => { if(e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') window.openInfoModal(u); }; aList.appendChild(item); 
-                    } item.appendChild(actions); });
                 }));
             }
         }
@@ -668,7 +682,6 @@
             ];
             let count = 0; 
             for(const r of roles) { 
-                // Force sync: Use setDoc with fixed ID for 'users' collection too
                 await setDoc(doc(getColRef('users'), r.id), { id: r.id, pw: '1234', name: r.name, role: r.role, siteId: targetSite, approved: true }); 
                 
                 const loc = genLoc();
@@ -681,19 +694,17 @@
 
         window.resetAllData = async () => {
             if(!confirm("⚠️ 경고: 정말로 모든 테스트 데이터(사용자 및 위치)를 삭제하시겠습니까?\n(현재 로그인된 본인 계정은 유지됩니다.)")) return;
-            // 1. Delete all test users/workers
             const qUsers = query(getColRef('users'));
             const snap = await getDocs(qUsers);
             let deleted = 0;
             snap.forEach(async (d) => {
-                if(d.id !== currentUser.id && d.id !== 'dark584') { // Protect self and super admin
+                if(d.id !== currentUser.id && d.id !== 'dark584') { 
                     await deleteDoc(doc(getColRef('users'), d.id));
-                    try { await deleteDoc(doc(getColRef('workers'), d.data().id)); } catch(e) {} // Try delete worker by user ID field
-                    try { await deleteDoc(doc(getColRef('workers'), d.id)); } catch(e) {} // Try delete worker by doc ID
+                    try { await deleteDoc(doc(getColRef('workers'), d.data().id)); } catch(e) {} 
+                    try { await deleteDoc(doc(getColRef('workers'), d.id)); } catch(e) {} 
                     deleted++;
                 }
             });
-            // 2. Also clear orphaned workers just in case
             const qWorkers = query(getColRef('workers'));
             const wSnap = await getDocs(qWorkers);
             wSnap.forEach(async (d) => {
