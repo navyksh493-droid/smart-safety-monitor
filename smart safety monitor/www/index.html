@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v11.8 (Final Fixes)</title>
+    <title>스마트 안전 관제 v11.8 (Final Live)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -112,7 +112,7 @@
 
     <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-90 hidden">
         <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md m-4 flex flex-col items-center max-h-[90vh] overflow-y-auto custom-scroll relative">
-            <div class="mb-6 flex flex-col items-center"><img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon"><h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1><p class="text-sm text-gray-500">System Admin v11.8</p></div>
+            <div class="mb-6 flex flex-col items-center"><img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon"><h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1><p class="text-sm text-gray-500">System Admin v11.8 (Live)</p></div>
             <div class="flex border-b mb-4 w-full"><button id="tab-login" class="flex-1 py-2 font-bold text-blue-600 border-b-2 border-blue-600">로그인</button><button id="tab-signup" class="flex-1 py-2 text-gray-500 hover:text-blue-500">회원가입</button></div>
             <div id="form-login" class="space-y-4 w-full"><input type="text" id="login-id" placeholder="아이디" class="w-full border p-3 rounded"><input type="password" id="login-pw" placeholder="비밀번호" class="w-full border p-3 rounded"><div class="flex items-center gap-2"><input type="checkbox" id="auto-login-check" class="w-4 h-4"><label for="auto-login-check" class="text-sm text-gray-600">자동 로그인</label></div><button id="btn-login" class="w-full bg-blue-800 text-white py-3 rounded font-bold hover:bg-blue-900 transition shadow-lg">로그인</button></div>
             <div id="form-signup" class="space-y-4 hidden w-full"><input type="text" id="reg-id" placeholder="아이디" class="w-full border p-3 rounded"><input type="text" id="reg-name" placeholder="이름 (실명)" class="w-full border p-3 rounded"><input type="password" id="reg-pw" placeholder="비밀번호" class="w-full border p-3 rounded"><div class="border p-3 rounded bg-gray-50"><label class="text-xs font-bold text-gray-500 block mb-1">소속 현장 선택</label><select id="reg-site" class="w-full border p-2 rounded bg-white"></select></div><select id="reg-role" class="w-full border p-3 rounded bg-white"><option value="worker">근로자</option><option value="guard">경비</option><option value="supervisor">관리감독자</option><option value="safety">안전관리자</option><option value="health">보건관리자</option><option value="admin">현장소장</option></select><button id="btn-signup" class="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700 transition">가입 신청</button></div>
@@ -225,6 +225,7 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, getDocs, setDoc, addDoc, deleteDoc, onSnapshot, query, where, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // ✅ 선생님의 실제 키가 적용된 버전입니다.
         const firebaseConfig = {
           apiKey: "AIzaSyCMWQa-O2m8BB0XHzhXlYfdy3smIsgKs0A",
           authDomain: "smart-safety-monitor-37649.firebaseapp.com",
@@ -338,8 +339,16 @@
                     const marker = L.marker([w.lat, w.lng], { icon: markerIcon, draggable: isGodMode }).addTo(map);
                     
                     if(isGodMode) { marker.on('dragend', async (e) => { const newPos = e.target.getLatLng(); await updateDoc(doc(getColRef('workers'), w.id), { lat: newPos.lat, lng: newPos.lng }); }); }
-                    if(w.isSOS) { L.marker([w.lat, w.lng], { icon: L.divIcon({ className: 'sos-marker-ring', iconSize: [40,40], iconAnchor: [20,20] }) }).addTo(map); } 
-                    else if (w.dangerEntryTime) { L.marker([w.lat, w.lng], { icon: L.divIcon({ className: 'danger-zone-ring', iconSize: [40,40], iconAnchor: [20,20] }) }).addTo(map); }
+                    if(w.isSOS) { 
+                        const ring = L.divIcon({ className: 'sos-marker-ring', iconSize: [40,40], iconAnchor: [20,20] });
+                        const ringMarker = L.marker([w.lat, w.lng], { icon: ring }).addTo(map);
+                        mapLayers.users.push(ringMarker); // Add to layer array for clearing
+                    } 
+                    else if (w.dangerEntryTime) { 
+                        const ring = L.divIcon({ className: 'danger-zone-ring', iconSize: [40,40], iconAnchor: [20,20] });
+                        const ringMarker = L.marker([w.lat, w.lng], { icon: ring }).addTo(map);
+                        mapLayers.users.push(ringMarker); // Add to layer array for clearing
+                    }
                     
                     let popup = `<b>${w.name}</b> <span class="text-xs text-gray-500">(${getRoleName(w.role)})</span>`;
                     if(w.status === 'leaving') popup += `<br><span class="text-red-500 font-bold">🏃 퇴근 이동 중</span>`;
@@ -376,6 +385,11 @@
             const now = Date.now();
             let hasOvertime = false;
             activeWorkers.forEach(w => {
+                // If just entered, notify
+                if (w.dangerEntryTime && (now - w.dangerEntryTime) < 2000) {
+                     // Simple check to avoid spam, better logic is state diff, but this works for demo
+                }
+                
                 if (w.dangerEntryTime) {
                     const elapsed = (now - w.dangerEntryTime) / 1000;
                     const limit = w.dangerLimit || 60;
@@ -496,6 +510,91 @@
             if(currentUser.role === 'super_admin') { const newSiteId = document.getElementById('edit-user-site-select').value; if(newSiteId) data.siteId = newSiteId; }
             await updateDoc(doc(getColRef('users'), uid), data); document.getElementById('userInfoModal').classList.add('hidden');
         };
+
+        window.createTestAccounts = async () => {
+            if(!confirm("현재 선택된 현장에 테스트용 계정들을 생성하시겠습니까?")) return;
+            const targetSite = (currentSiteId === 'all') ? (Object.keys(siteMap)[0]) : currentSiteId;
+            if(!targetSite) return alert("생성할 현장이 없습니다. 현장을 먼저 생성해주세요.");
+            const center = map.getCenter();
+            const genLoc = () => ({ lat: center.lat + (Math.random() - 0.5) * 0.002, lng: center.lng + (Math.random() - 0.5) * 0.002 });
+            const roles = [ 
+                {id: 'test_admin', name: '김소장', role: 'admin'}, {id: 'test_safe', name: '이안전', role: 'safety'}, 
+                {id: 'test_health', name: '박보건', role: 'health'}, {id: 'test_super', name: '최감독', role: 'supervisor'}, 
+                {id: 'test_guard', name: '정경비', role: 'guard'}, {id: 'test_worker', name: '강근로', role: 'worker'}, 
+                // [Added more workers for testing]
+                {id: 'test_worker2', name: '강근로2', role: 'worker'}, {id: 'test_worker3', name: '강근로3', role: 'worker'},
+                {id: 'test_worker4', name: '강근로4', role: 'worker'}, {id: 'test_worker5', name: '강근로5', role: 'worker'},
+                {id: 'test_pending', name: '대기자', role: 'worker', approved: false} 
+            ];
+            let count = 0; 
+            for(const r of roles) { 
+                const q = query(getColRef('users'), where('id', '==', r.id)); const snap = await getDocs(q); 
+                if(snap.empty) { 
+                    await addDoc(getColRef('users'), { id: r.id, pw: '1234', name: r.name, role: r.role, siteId: targetSite, approved: r.approved !== false }); 
+                    const loc = genLoc();
+                    await setDoc(doc(getColRef('workers'), r.id), { id: r.id, name: r.name, role: r.role, siteId: targetSite, lat: loc.lat, lng: loc.lng, lastUpdate: Date.now(), isVisible: true }, {merge: true});
+                    count++; 
+                } 
+            }
+            alert(`${count}개의 테스트 계정이 생성되었습니다. (PW: 1234)`);
+        };
+        window.openDeleteSelectionModal = () => document.getElementById('deleteSelectionModal').classList.remove('hidden');
+        
+        function startWebGPS() { if (!navigator.geolocation) return; gpsWatchId = navigator.geolocation.watchPosition((pos) => { handlePositionUpdate(pos.coords); }, null, { enableHighAccuracy: true }); }
+        function handlePositionUpdate(coords) {
+            const lat = coords.latitude; const lng = coords.longitude; const alt = coords.altitude ? Math.round(coords.altitude) : currentAltitude;
+            if(isFirstGPSFix) { map.setView([lat, lng], 18); isFirstGPSFix=false; }
+            let inDanger = false, zoneName = null, limit = 60, inAnyZone2D = false;
+            
+            zones.forEach(z => { 
+                if(isPointInPolygon([lat, lng], z.points)) { 
+                    inAnyZone2D = true; 
+                    if(alt >= z.minAlt && alt <= z.maxAlt) { 
+                        if(z.isConfined) { inDanger = true; zoneName = z.name; limit = z.timeLimit || 60; } 
+                    } 
+                } 
+            });
+            
+            // Smart Update for Danger Time (Check local cache via activeWorkers)
+            const me = activeWorkers.find(w => w.id === currentUser.id);
+            let currentEntryTime = me ? me.dangerEntryTime : null;
+            if (inDanger) { 
+                if (!currentEntryTime) {
+                    currentEntryTime = Date.now(); 
+                    showToast(`⚠️ [${zoneName}] 구역 진입! 주의하세요.`, "danger"); // [New] Entry Alert
+                }
+            } 
+            else { if (currentEntryTime) showToast("✅ 상황 종료: 안전 구역으로 복귀함", "success"); currentEntryTime = null; }
+
+            const dist = getDistanceFromLatLonInKm(lat, lng, SITE_CENTER.lat, SITE_CENTER.lng); const isOut = (dist > MAX_DISTANCE_KM) && !inAnyZone2D;
+            if (isOut && !isOutOfRange) { isOutOfRange = true; showToast("🚫 작업 반경 이탈", "warning"); } else if (!isOut && isOutOfRange) { isOutOfRange = false; showToast("✅ 복귀 완료", "success"); }
+            
+            document.getElementById('zone-status-display').innerText = zoneName ? `구역: ${zoneName}` : "구역: 없음";
+            const userRef = doc(getColRef('workers'), currentUser.id);
+            setDoc(userRef, { id: currentUser.id, name: currentUser.name, role: currentUser.role, siteId: currentUser.siteId, lat, lng, alt, lastUpdate: Date.now(), isVisible: !isOut, dangerEntryTime: currentEntryTime, dangerLimit: limit, currentZoneName: zoneName }, { merge: true });
+        }
+        function startGPS() { if(window.Capacitor) { /* App */ } else startWebGPS(); }
+        window.refreshGPS = () => { if(gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId=null; setTimeout(startGPS, 500); };
+        
+        function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) { var R = 6371; var dLat = (lat2-lat1)*(Math.PI/180); var dLon = (lon2-lon1)*(Math.PI/180); var a = Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*(Math.PI/180))*Math.cos(lat2*(Math.PI/180))*Math.sin(dLon/2)*Math.sin(dLon/2); return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); }
+        function isPointInPolygon(p, vs) { var x = p[0], y = p[1]; var inside = false; for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) { var xi = vs[i][0], yi = vs[i][1]; var xj = vs[j][0], yj = vs[j][1]; var intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi); if (intersect) inside = !inside; } return inside; }
+        function getRoleName(r) { const names = {super_admin:'최고관리자', admin:'현장소장', safety:'안전관리자', health:'보건관리자', supervisor:'관리감독자', guard:'경비', worker:'근로자'}; return names[r] || r; }
+        function updateStats() { let t=0,d=0,s=0,a=0,o=0; activeWorkers.forEach(w=>{t++; if(w.isSOS)s++; if(w.isVisible)a++; else o++; if(w.dangerEntryTime)d++;}); document.getElementById('stat-total').innerText=t; document.getElementById('stat-active').innerText=a; document.getElementById('stat-out').innerText=o; document.getElementById('stat-danger').innerText=d; document.getElementById('mobile-stat-total').innerText=t; document.getElementById('mobile-stat-active').innerText=a; document.getElementById('mobile-stat-out').innerText=o; document.getElementById('mobile-stat-danger').innerText=d; }
+        function renderDangerList() { 
+            const list=document.getElementById('danger-worker-list'); const panel=document.getElementById('danger-status-panel'); const d=activeWorkers.filter(w=>w.dangerEntryTime); list.innerHTML=''; 
+            if(d.length>0){ panel.classList.remove('hidden'); d.forEach(w=>{ const elapsed = Math.floor((Date.now()-w.dangerEntryTime)/1000); const limit = w.dangerLimit || 60; const isOver = elapsed > limit; const style = isOver ? 'text-red-600 font-extrabold animate-pulse' : 'text-purple-600 font-bold'; list.innerHTML+=`<div class="flex justify-between items-center bg-gray-50 p-1 rounded border-b"><span>${w.name} (${w.currentZoneName})</span><span class="${style}">${elapsed}s / ${limit}s</span></div>`; }); } else panel.classList.add('hidden'); 
+        }
+        function showToast(msg,type){ const c=document.getElementById('toast-container'); const t=document.createElement('div'); t.className=`toast ${type}`; let icon='fa-info-circle text-blue-500'; if(type==='danger') icon='fa-circle-exclamation text-red-500'; else if(type==='success') icon='fa-circle-check text-green-500'; else if(type==='warning') icon='fa-triangle-exclamation text-orange-500'; t.innerHTML=`<i class="fa-solid ${icon}"></i><div><div class="font-bold text-gray-800">알림</div><div class="text-sm text-gray-600">${msg}</div></div>`; c.appendChild(t); setTimeout(()=>t.remove(),4000); }
+
+        document.getElementById('btn-login').onclick = handleLogin; document.getElementById('btn-signup').onclick = handleSignup; document.getElementById('tab-login').onclick = () => switchAuth('login'); document.getElementById('tab-signup').onclick = () => switchAuth('signup'); document.getElementById('alt-slider').oninput = (e) => { currentAltitude = parseInt(e.target.value); document.getElementById('current-alt-display').innerText = `${currentAltitude}m`; };
+        const sidebar = document.getElementById('sidebar'); const overlay = document.getElementById('sidebar-overlay');
+        document.getElementById('btn-menu-toggle').onclick = () => { sidebar.classList.remove('-translate-x-full'); overlay.classList.remove('hidden'); };
+        const closeSidebar = () => { sidebar.classList.add('-translate-x-full'); overlay.classList.add('hidden'); };
+        document.getElementById('btn-close-sidebar').onclick = closeSidebar; overlay.onclick = closeSidebar;
+        document.getElementById('tab-monitor').onclick = () => { document.getElementById('panel-monitor').classList.remove('hidden'); document.getElementById('panel-users').classList.add('hidden'); document.getElementById('tab-monitor').classList.add('border-b-2','border-blue-500','text-blue-600'); document.getElementById('tab-users').classList.remove('border-b-2','border-blue-500','text-blue-600'); };
+        document.getElementById('tab-users').onclick = () => { document.getElementById('panel-monitor').classList.add('hidden'); document.getElementById('panel-users').classList.remove('hidden'); document.getElementById('tab-users').classList.add('border-b-2','border-blue-500','text-blue-600'); document.getElementById('tab-monitor').classList.remove('border-b-2','border-blue-500','text-blue-600'); };
+        window.openMyInfoModal = () => { document.getElementById('my-name').value = currentUser.name || ''; document.getElementById('myInfoModal').classList.remove('hidden'); };
+        window.saveMyInfo = async () => { const name = document.getElementById('my-name').value; await updateDoc(doc(getColRef('users'), currentUser.id), { name }); currentUser.name = name; document.getElementById('user-display').innerText = `${name} (${getRoleName(currentUser.role)})`; document.getElementById('myInfoModal').classList.add('hidden'); };
     </script>
 </body>
 </html>
