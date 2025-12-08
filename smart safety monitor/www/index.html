@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 v11.7 (Full Integrated)</title>
+    <title>스마트 안전 관제 (Live Server)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -112,7 +112,7 @@
 
     <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-90 hidden">
         <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md m-4 flex flex-col items-center max-h-[90vh] overflow-y-auto custom-scroll relative">
-            <div class="mb-6 flex flex-col items-center"><img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon"><h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1><p class="text-sm text-gray-500">System Admin v11.7</p></div>
+            <div class="mb-6 flex flex-col items-center"><img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon"><h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1><p class="text-sm text-gray-500">System Admin v11.7 (Live)</p></div>
             <div class="flex border-b mb-4 w-full"><button id="tab-login" class="flex-1 py-2 font-bold text-blue-600 border-b-2 border-blue-600">로그인</button><button id="tab-signup" class="flex-1 py-2 text-gray-500 hover:text-blue-500">회원가입</button></div>
             <div id="form-login" class="space-y-4 w-full"><input type="text" id="login-id" placeholder="아이디" class="w-full border p-3 rounded"><input type="password" id="login-pw" placeholder="비밀번호" class="w-full border p-3 rounded"><div class="flex items-center gap-2"><input type="checkbox" id="auto-login-check" class="w-4 h-4"><label for="auto-login-check" class="text-sm text-gray-600">자동 로그인</label></div><button id="btn-login" class="w-full bg-blue-800 text-white py-3 rounded font-bold hover:bg-blue-900 transition shadow-lg">로그인</button></div>
             <div id="form-signup" class="space-y-4 hidden w-full"><input type="text" id="reg-id" placeholder="아이디" class="w-full border p-3 rounded"><input type="text" id="reg-name" placeholder="이름 (실명)" class="w-full border p-3 rounded"><input type="password" id="reg-pw" placeholder="비밀번호" class="w-full border p-3 rounded"><div class="border p-3 rounded bg-gray-50"><label class="text-xs font-bold text-gray-500 block mb-1">소속 현장 선택</label><select id="reg-site" class="w-full border p-2 rounded bg-white"></select></div><select id="reg-role" class="w-full border p-3 rounded bg-white"><option value="worker">근로자</option><option value="guard">경비</option><option value="supervisor">관리감독자</option><option value="safety">안전관리자</option><option value="health">보건관리자</option><option value="admin">현장소장</option></select><button id="btn-signup" class="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700 transition">가입 신청</button></div>
@@ -225,9 +225,23 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, getDocs, setDoc, addDoc, deleteDoc, onSnapshot, query, where, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = { apiKey: "AIzaSyBDVhMMDtcIDGWA-s0kHb0EMmaOLIPV4L0", authDomain: "smart-safety-monitor.firebaseapp.com", projectId: "smart-safety-monitor", storageBucket: "smart-safety-monitor.firebasestorage.app", messagingSenderId: "591476915568", appId: "1:591476915568:web:ea0c0fc708ca6c830ba3b5", measurementId: "G-GH963JH8BG" };
-        const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const SITE_CENTER = { lat: 37.5665, lng: 126.9780 }; const MAX_DISTANCE_KM = 0.5; // [Updated] 500m geofence
+        // ⚠️ [중요] 여기에 본인의 Firebase API Key를 넣으세요!
+        const firebaseConfig = {
+          apiKey: "AIzaSyCMWQa-O2m8BB0XHzhXlYfdy3smIsgKs0A",
+          authDomain: "smart-safety-monitor-37649.firebaseapp.com",
+          projectId: "smart-safety-monitor-37649",
+          storageBucket: "smart-safety-monitor-37649.firebasestorage.app",
+          messagingSenderId: "409985776476",
+          appId: "1:409985776476:web:a36b3b93e734878fb35f99",
+          measurementId: "G-E73V9VHXR3"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const SITE_CENTER = { lat: 37.5665, lng: 126.9780 }; 
+        const MAX_DISTANCE_KM = 0.5; // 500m geofence
 
         let map, currentUser = null, currentSiteId = null;
         let zones = [], activeWorkers = [];
@@ -235,7 +249,6 @@
         let isDrawing = false, drawingPoints = [];
         let gpsWatchId = null, currentAltitude = 0, isOutOfRange = false, isFirstGPSFix = true;
         let unsubscribers = [], editingZoneId = null, siteMap = {}, sosInterval = null, boundaryPolygon = null;
-        let alarmInterval = null;
 
         const getColRef = (name) => collection(db, 'artifacts', appId, 'public', 'data', name);
         const isManager = (role) => ['super_admin', 'admin', 'safety', 'health', 'supervisor'].includes(role);
@@ -301,7 +314,6 @@
                 snap.forEach(doc => {
                     const w = doc.data(); const isMe = (w.id === currentUser.id);
                     if(Date.now() - w.lastUpdate > 300000) return; 
-                    // Hide if not visible and not me, unless leaving (to track exit)
                     if(!w.isVisible && !isMe && w.status !== 'leaving') return; 
                     activeWorkers.push(w);
                     
@@ -378,4 +390,112 @@
             }
         }
         
-        // 5
+        // 5-min Stay Logic for Leaving Users
+        function checkCommuteTimeout() {
+            if (!currentUser || currentUser.role === 'super_admin') return;
+            const me = activeWorkers.find(w => w.id === currentUser.id);
+            if (!me || me.status !== 'leaving' || !me.lastCheckoutPressTime) return;
+            const elapsed = Date.now() - me.lastCheckoutPressTime;
+            const fiveMin = 5 * 60 * 1000;
+            const dist = getDistanceFromLatLonInKm(me.lat, me.lng, SITE_CENTER.lat, SITE_CENTER.lng);
+            if (dist < MAX_DISTANCE_KM && elapsed > fiveMin) {
+                setCommute('working');
+                showToast("⚠️ 현장에 계속 머물러 있어 퇴근이 취소되었습니다. 나가실 때 다시 눌러주세요.", "warning");
+                if(navigator.vibrate) navigator.vibrate(1000);
+            }
+        }
+
+        // Pocket Mode (v11.1)
+        window.togglePocketMode = () => {
+            const overlay = document.getElementById('pocket-mode-overlay');
+            if(overlay.classList.contains('pocket-hidden')) { overlay.classList.remove('pocket-hidden'); overlay.classList.add('pocket-active'); } 
+            else { overlay.classList.remove('pocket-active'); overlay.classList.add('pocket-hidden'); }
+        };
+        const unlockBtn = document.getElementById('btn-unlock-screen'); let pressTimer;
+        unlockBtn.addEventListener('mousedown', () => pressTimer = setTimeout(window.togglePocketMode, 800));
+        unlockBtn.addEventListener('touchstart', () => pressTimer = setTimeout(window.togglePocketMode, 800));
+        unlockBtn.addEventListener('mouseup', () => clearTimeout(pressTimer)); unlockBtn.addEventListener('touchend', () => clearTimeout(pressTimer));
+
+        window.openCreateSiteModal = () => { document.getElementById('site-modal-title').innerText = "새 현장 생성"; document.getElementById('edit-site-id').value = ""; document.getElementById('new-site-name').value = ""; document.getElementById('createSiteModal').classList.remove('hidden'); };
+        window.openEditSiteModal = () => { if(currentSiteId === 'all') return alert("수정할 개별 현장을 선택해주세요."); const siteName = siteMap[currentSiteId]; document.getElementById('site-modal-title').innerText = "현장 정보 수정"; document.getElementById('edit-site-id').value = currentSiteId; document.getElementById('new-site-name').value = siteName; document.getElementById('createSiteModal').classList.remove('hidden'); };
+        window.saveSiteData = async () => { const id = document.getElementById('edit-site-id').value; const name = document.getElementById('new-site-name').value; if(!name) return; if(id) { await updateDoc(doc(getColRef('sites'), id), { name }); alert("수정 완료"); } else { await addDoc(getColRef('sites'), { name }); alert("생성 완료"); } document.getElementById('createSiteModal').classList.add('hidden'); };
+        window.deleteCurrentSite = async () => { if(currentUser.role !== 'super_admin') return alert("권한이 없습니다."); if(currentSiteId === 'all') return alert("삭제할 특정 현장을 목록에서 먼저 선택해주세요."); if(confirm(`[경고] 정말 '${siteMap[currentSiteId]}' 현장을 삭제하시겠습니까?`)) { await deleteDoc(doc(getColRef('sites'), currentSiteId)); alert("현장이 영구 삭제되었습니다."); document.getElementById('super-admin-site-select').value = 'all'; document.getElementById('deleteSelectionModal').classList.add('hidden'); currentSiteId = 'all'; subscribeData(); } };
+        window.editCurrentSiteBoundary = () => {
+            const boundaryZone = zones.find(z => z.type === 'boundary');
+            if(!boundaryZone) return alert("현재 현장에 설정된 경계가 없습니다. '구역 생성'으로 경계를 먼저 만들어주세요.");
+            document.getElementById('createSiteModal').classList.add('hidden'); 
+            openZoneEdit(boundaryZone);
+            redrawZone(); 
+        };
+
+        window.startDrawing = () => { 
+            if(!canCreateZone(currentUser.role)) return alert("권한이 없습니다."); if(currentSiteId === 'all') return alert("특정 현장을 선택하세요.");
+            isDrawing = true; drawingPoints = []; mapLayers.temp.forEach(l => map.removeLayer(l)); mapLayers.temp = []; 
+            if(mapLayers.tempLine) { map.removeLayer(mapLayers.tempLine); mapLayers.tempLine = null; }
+            document.getElementById('tool-default').classList.add('hidden'); document.getElementById('tool-drawing').classList.remove('hidden'); 
+            mapLayers.tempLine = L.polyline([], {color: '#ef4444', dashArray: '5, 10', weight: 2}).addTo(map);
+            mapLayers.zones.forEach(layer => layer.getElement().style.pointerEvents = 'none'); // Lock existing zones
+        };
+        window.cancelDrawing = () => { 
+            isDrawing = false; document.getElementById('tool-default').classList.remove('hidden'); document.getElementById('tool-drawing').classList.add('hidden'); 
+            mapLayers.temp.forEach(l=>map.removeLayer(l)); mapLayers.temp=[]; if(mapLayers.tempLine) { map.removeLayer(mapLayers.tempLine); mapLayers.tempLine = null; }
+            mapLayers.zones.forEach(layer => layer.getElement().style.pointerEvents = 'auto'); // Unlock
+        };
+        window.addDrawingPoint = (latlng) => { 
+            if(boundaryPolygon) {
+                const isDrawingBoundary = (zones.filter(z => z.type === 'boundary').length === 0) || (editingZoneId && zones.find(z=>z.id===editingZoneId).type === 'boundary');
+                if(!isDrawingBoundary && !isPointInPolygon([latlng.lat, latlng.lng], boundaryPolygon.geometry.coordinates[0])) { showToast("🚫 현장 경계 내부만 선택 가능합니다", "warning"); return; }
+            }
+            drawingPoints.push([latlng.lat, latlng.lng]); const m = L.circleMarker(latlng, {radius:4, color: 'red'}).addTo(map); mapLayers.temp.push(m); if(mapLayers.tempLine) mapLayers.tempLine.setLatLngs(drawingPoints);
+        };
+        document.getElementById('btn-finish-draw').onclick = () => { 
+            if(drawingPoints.length<3) return alert("3점 이상"); editingZoneId = null; document.getElementById('zone-modal-title').innerText = "새 구역 저장"; document.getElementById('zone-name').value = ""; document.getElementById('btn-redraw-zone').classList.add('hidden');
+            const hasZones = zones.length > 0; const typeSelect = document.getElementById('zone-type'); const infoText = document.getElementById('zone-type-info');
+            if(!hasZones) { typeSelect.value = 'boundary'; infoText.classList.remove('hidden'); } else { typeSelect.value = 'normal'; infoText.classList.add('hidden'); }
+            window.handleZoneTypeChange(); document.getElementById('zoneModal').classList.remove('hidden'); 
+        };
+        window.handleZoneTypeChange = () => { const type = document.getElementById('zone-type').value; const heightArea = document.getElementById('height-config-area'); if(type === 'danger') heightArea.classList.remove('hidden'); else heightArea.classList.add('hidden'); }
+        window.openZoneEdit = (z) => { if(!isZoneEditable(currentUser, z)) return; editingZoneId = z.id; drawingPoints = z.points; document.getElementById('zone-modal-title').innerText = "구역 정보 수정"; document.getElementById('zone-name').value = z.name; document.getElementById('zone-type').value = z.type || 'normal'; document.getElementById('zone-alt-min').value = z.minAlt; document.getElementById('zone-alt-max').value = z.maxAlt; document.getElementById('zone-time-limit').value = z.timeLimit || 60; document.getElementById('zone-type-info').classList.add('hidden'); document.getElementById('btn-redraw-zone').classList.remove('hidden'); window.handleZoneTypeChange(); document.getElementById('zoneModal').classList.remove('hidden'); };
+        window.redrawZone = () => { if(!confirm("현재 구역의 모양을 새로 그리시겠습니까?")) return; document.getElementById('zoneModal').classList.add('hidden'); isDrawing = true; drawingPoints = []; mapLayers.temp.forEach(l => map.removeLayer(l)); mapLayers.temp = []; if(mapLayers.tempLine) { map.removeLayer(mapLayers.tempLine); mapLayers.tempLine = null; } document.getElementById('tool-default').classList.add('hidden'); document.getElementById('tool-drawing').classList.remove('hidden'); mapLayers.tempLine = L.polyline([], {color: '#ef4444', dashArray: '5, 10', weight: 2}).addTo(map); mapLayers.zones.forEach(layer => layer.getElement().style.pointerEvents = 'none'); showToast("✏️ 지도에 점을 찍어 영역을 새로 그리세요", "info"); };
+        window.saveZone = async () => {
+            const name = document.getElementById('zone-name').value; const type = document.getElementById('zone-type').value;
+            const minAlt = document.getElementById('zone-alt-min').value; const maxAlt = document.getElementById('zone-alt-max').value;
+            const limit = document.getElementById('zone-time-limit').value;
+            const zoneData = { name, points: JSON.stringify(drawingPoints), type, isConfined: (type === 'danger'), minAlt: parseInt(minAlt), maxAlt: parseInt(maxAlt), timeLimit: parseInt(limit), siteId: currentSiteId };
+            if(editingZoneId) await updateDoc(doc(getColRef('zones'), editingZoneId), zoneData); else await addDoc(getColRef('zones'), zoneData);
+            cancelDrawing(); document.getElementById('zoneModal').classList.add('hidden');
+        };
+
+        window.deleteZone = async (id) => { if(confirm("삭제?")) await deleteDoc(doc(getColRef('zones'), id)); };
+        window.deleteUser = async (id) => { if(confirm("삭제?")) await deleteDoc(doc(getColRef('users'), id)); };
+        window.approveUser = async (id) => await updateDoc(doc(getColRef('users'), id), { approved: true });
+        
+        window.openInfoModal = (u) => {
+            document.getElementById('edit-user-id').value = u.docId; document.getElementById('edit-job').value = u.job || ''; document.getElementById('edit-equip').value = u.equip || '';
+            document.getElementById('edit-assigned-area').value = u.assignedArea || ''; document.getElementById('edit-personal-info').value = u.personalInfo || '';
+            document.getElementById('edit-health-grade').value = u.healthGrade || 'A'; document.getElementById('edit-checkup-date').value = u.checkupDate || '';
+            document.getElementById('edit-is-elderly').checked = u.isElderly || false; document.getElementById('edit-has-bp').checked = u.hasBP || false;
+            document.getElementById('edit-has-diabetes').checked = u.hasDiabetes || false; document.getElementById('edit-confined-trained').checked = u.confinedTrained || false;
+
+            const siteArea = document.getElementById('super-admin-user-site-area'); const siteSelect = document.getElementById('edit-user-site-select');
+            if(currentUser.role === 'super_admin') {
+                siteArea.classList.remove('hidden'); siteSelect.innerHTML = '';
+                getDocs(getColRef('sites')).then(snap => { snap.forEach(d => { const opt = document.createElement('option'); opt.value = d.id; opt.text = d.data().name; if(d.id === u.siteId) opt.selected = true; siteSelect.appendChild(opt); }); });
+            } else { siteArea.classList.add('hidden'); }
+            document.getElementById('userInfoModal').classList.remove('hidden');
+        };
+        window.saveUserInfo = async () => {
+            const uid = document.getElementById('edit-user-id').value;
+            const data = {
+                job: document.getElementById('edit-job').value, equip: document.getElementById('edit-equip').value, assignedArea: document.getElementById('edit-assigned-area').value,
+                personalInfo: document.getElementById('edit-personal-info').value, healthGrade: document.getElementById('edit-health-grade').value,
+                checkupDate: document.getElementById('edit-checkup-date').value, hasBP: document.getElementById('edit-has-bp').checked,
+                hasDiabetes: document.getElementById('edit-has-diabetes').checked, isElderly: document.getElementById('edit-is-elderly').checked,
+                confinedTrained: document.getElementById('edit-confined-trained').checked
+            };
+            if(currentUser.role === 'super_admin') { const newSiteId = document.getElementById('edit-user-site-select').value; if(newSiteId) data.siteId = newSiteId; }
+            await updateDoc(doc(getColRef('users'), uid), data); document.getElementById('userInfoModal').classList.add('hidden');
+        };
+    </script>
+</body>
+</html>
