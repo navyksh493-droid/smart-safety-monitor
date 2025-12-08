@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 시스템 v17.0 (정밀로그/보건관리)</title>
+    <title>스마트 안전 관제 시스템 v17.1 (안정성 패치)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -35,18 +35,34 @@
         .pocket-active { display: flex !important; }
         .pocket-hidden { display: none !important; }
 
-        .custom-dot-marker {
-            width: 14px; height: 14px; border-radius: 50%; border: 2px solid white;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.4); transition: transform 0.2s, background-color 0.3s;
+        /* --- [수정 시작] 마커 터치 영역 확대 및 스타일 개선 --- */
+        .marker-touch-zone {
+            width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            position: relative;
+            /* 배경색이 없어야 투명하게 클릭 영역만 확보됨 */
         }
-        .custom-dot-marker:active { transform: scale(1.5); }
+        
+        .custom-dot-marker {
+            width: 16px; height: 16px; /* 크기 약간 확대 14->16 */
+            border-radius: 50%; border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4); 
+            transition: transform 0.2s, background-color 0.3s;
+            z-index: 20; /* 링보다 위에 오도록 */
+            pointer-events: none; /* 클릭 이벤트가 부모(touch-zone)로 전달되도록 */
+        }
+        
+        /* 터치했을 때 시각적 효과 */
+        .marker-touch-zone:active .custom-dot-marker { transform: scale(1.5); }
 
         @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
         @keyframes pulse-purple { 0% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(147, 51, 234, 0); } 100% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0); } }
         
-        .sos-marker-ring { position: absolute; border-radius: 50%; border: 3px solid #ef4444; width: 100%; height: 100%; animation: pulse-red 1.5s infinite; }
-        .danger-zone-ring { position: absolute; border-radius: 50%; border: 3px solid #9333ea; width: 100%; height: 100%; animation: pulse-purple 1s infinite; }
-        
+        /* 링 애니메이션 위치 중앙 정렬 수정 */
+        .sos-marker-ring { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; border: 3px solid #ef4444; width: 40px; height: 40px; animation: pulse-red 1.5s infinite; z-index: 10; pointer-events: none; }
+        .danger-zone-ring { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; border: 3px solid #9333ea; width: 40px; height: 40px; animation: pulse-purple 1s infinite; z-index: 10; pointer-events: none; }
+        /* --- [수정 끝] --- */
+
         .sos-btn { position: absolute; bottom: 100px; right: 20px; z-index: 1000; width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; font-weight: bold; font-size: 12px; box-shadow: 0 4px 15px rgba(220, 38, 38, 0.5); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s; border: 3px solid white; }
         .sos-btn:active { transform: scale(0.95); }
         .sos-btn.active { animation: emergency-blink 0.5s infinite; background: #991b1b; border-color: #fbbf24; }
@@ -129,7 +145,7 @@
 
     <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-90 hidden">
         <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md m-4 flex flex-col items-center max-h-[90vh] overflow-y-auto custom-scroll relative">
-            <div class="mb-6 flex flex-col items-center"><img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon"><h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1><p class="text-sm text-gray-500">System Admin v17.0</p></div>
+            <div class="mb-6 flex flex-col items-center"><img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon"><h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1><p class="text-sm text-gray-500">System Admin v17.1</p></div>
             <div class="flex border-b mb-4 w-full"><button id="tab-login" class="flex-1 py-2 font-bold text-blue-600 border-b-2 border-blue-600">로그인</button><button id="tab-signup" class="flex-1 py-2 text-gray-500 hover:text-blue-500">회원가입</button></div>
             <div id="form-login" class="space-y-4 w-full"><input type="text" id="login-id" placeholder="아이디" class="w-full border p-3 rounded"><input type="password" id="login-pw" placeholder="비밀번호" class="w-full border p-3 rounded"><div class="flex items-center gap-2"><input type="checkbox" id="auto-login-check" class="w-4 h-4"><label for="auto-login-check" class="text-sm text-gray-600">자동 로그인</label></div><button id="btn-login" class="w-full bg-blue-800 text-white py-3 rounded font-bold hover:bg-blue-900 transition shadow-lg">로그인</button></div>
             <div id="form-signup" class="space-y-4 hidden w-full"><input type="text" id="reg-id" placeholder="아이디" class="w-full border p-3 rounded"><input type="text" id="reg-name" placeholder="이름 (실명)" class="w-full border p-3 rounded"><input type="password" id="reg-pw" placeholder="비밀번호" class="w-full border p-3 rounded"><div class="border p-3 rounded bg-gray-50"><label class="text-xs font-bold text-gray-500 block mb-1">소속 현장 선택</label><select id="reg-site" class="w-full border p-2 rounded bg-white"></select></div><select id="reg-role" class="w-full border p-3 rounded bg-white"><option value="worker">근로자</option><option value="guard">경비</option><option value="supervisor">관리감독자</option><option value="safety">안전관리자</option><option value="health">보건관리자</option><option value="admin">현장소장</option></select><button id="btn-signup" class="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700 transition">가입 신청</button></div>
@@ -273,6 +289,7 @@
         let map, currentUser = null, currentSiteId = null;
         let zones = [], activeWorkers = [];
         let mapLayers = { zones: [], users: [], temp: [], tempLine: null };
+        let workerMarkers = {}; // [추가] 마커 추적용 객체
         let isDrawing = false, drawingPoints = [];
         let gpsWatchId = null, currentAltitude = 0, isOutOfRange = false, isFirstGPSFix = true;
         let unsubscribers = [], editingZoneId = null, siteMap = {}, sosInterval = null, boundaryPolygon = null;
@@ -280,7 +297,6 @@
         let simulationInterval = null;
         let validUserIds = new Set(); 
         
-        // Dummy local state for danger logs (to prevent spam)
         let dummyStates = {}; 
 
         const getColRef = (name) => collection(db, 'artifacts', appId, 'public', 'data', name);
@@ -442,7 +458,13 @@
         }
 
         function subscribeData() {
-            unsubscribers.forEach(unsub => unsub()); unsubscribers = []; mapLayers.zones.forEach(l => map.removeLayer(l)); mapLayers.zones = []; mapLayers.users.forEach(l => map.removeLayer(l)); mapLayers.users = []; activeWorkers = []; boundaryPolygon = null;
+            unsubscribers.forEach(unsub => unsub()); unsubscribers = []; 
+            mapLayers.zones.forEach(l => map.removeLayer(l)); mapLayers.zones = []; 
+            mapLayers.users.forEach(l => map.removeLayer(l)); mapLayers.users = []; 
+            // [수정] 마커 추적 객체도 초기화
+            Object.values(workerMarkers).forEach(m => map.removeLayer(m)); workerMarkers = {};
+            activeWorkers = []; boundaryPolygon = null;
+            
             let qZone = getColRef('zones'); if(currentSiteId !== 'all') qZone = query(qZone, where('siteId', '==', currentSiteId));
             unsubscribers.push(onSnapshot(qZone, (snap) => {
                 mapLayers.zones.forEach(l => map.removeLayer(l)); mapLayers.zones = []; zones = []; const listEl = document.getElementById('zone-list'); listEl.innerHTML = '';
@@ -491,16 +513,21 @@
                 }
             }));
 
+            // --- [수정] Worker Snapshot: 마커 갱신 최적화 로직 적용 ---
             let qWorker = getColRef('workers'); if(currentSiteId !== 'all') qWorker = query(qWorker, where('siteId', '==', currentSiteId));
             unsubscribers.push(onSnapshot(qWorker, (snap) => {
-                mapLayers.users.forEach(m => map.removeLayer(m)); mapLayers.users = []; activeWorkers = [];
+                const currentUpdateIds = new Set();
+                activeWorkers = [];
+
                 snap.forEach(async (docSnap) => {
-                    const w = docSnap.data(); const isMe = (w.id === currentUser.id);
+                    const w = docSnap.data();
+                    currentUpdateIds.add(w.id);
+
+                    const isMe = (w.id === currentUser.id);
                     if (!isMe && !validUserIds.has(w.id)) return; 
 
                     if(isMe && currentUser) { 
                         currentUser = { ...currentUser, ...w }; updateCommuteUI(currentUser); 
-                        // Real User Danger Check
                         const dangerUpdate = checkAndLogDanger(w.id, w.name, w.lat, w.lng);
                         if(dangerUpdate) updateDoc(doc(getColRef('workers'), w.id), dangerUpdate);
                     } 
@@ -510,7 +537,10 @@
                     const isDisconnected = timeDiff > DISCONNECT_THRESHOLD;
                     activeWorkers.push({ ...w, isDisconnected });
 
-                    if(!w.isVisible && !isMe) return;
+                    if(!w.isVisible && !isMe) {
+                        if(workerMarkers[w.id]) { map.removeLayer(workerMarkers[w.id]); delete workerMarkers[w.id]; }
+                        return;
+                    }
 
                     let color = '#2563eb'; 
                     if(['super_admin', 'admin', 'safety', 'health', 'supervisor'].includes(w.role)) color = '#f97316'; 
@@ -524,7 +554,6 @@
                         if (elapsed > limit) color = '#ef4444'; else color = '#9333ea';
                     }
                     if(w.isSOS) color = '#ef4444'; 
-                    
                     if (isDisconnected) {
                         color = '#4b5563'; 
                         if(!offlineAlertsSent[w.id] && isManager(currentUser.role)) {
@@ -533,27 +562,46 @@
                         }
                     } else { offlineAlertsSent[w.id] = false; }
 
-                    const markerIcon = L.divIcon({ className: '', html: `<div class="custom-dot-marker" style="background-color: ${color};"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] });
-                    const isGodMode = (currentUser.role === 'super_admin');
-                    const marker = L.marker([w.lat, w.lng], { icon: markerIcon, draggable: isGodMode }).addTo(map);
-                    
-                    if(isGodMode) { marker.on('dragend', async (e) => { const newPos = e.target.getLatLng(); await updateDoc(doc(getColRef('workers'), w.id), { lat: newPos.lat, lng: newPos.lng }); }); }
-                    
-                    if(w.isSOS && !isDisconnected) { 
-                        const ring = L.marker([w.lat, w.lng], { icon: L.divIcon({ className: 'sos-marker-ring', iconSize: [40,40], iconAnchor: [20,20] }) }).addTo(map);
-                        mapLayers.users.push(ring); 
-                    } 
-                    else if (w.dangerEntryTime && !isDisconnected) { 
-                        const ring = L.marker([w.lat, w.lng], { icon: L.divIcon({ className: 'danger-zone-ring', iconSize: [40,40], iconAnchor: [20,20] }) }).addTo(map); 
-                        mapLayers.users.push(ring);
-                    }
+                    let ringHtml = '';
+                    if(w.isSOS && !isDisconnected) ringHtml = `<div class="sos-marker-ring"></div>`;
+                    else if(w.dangerEntryTime && !isDisconnected) ringHtml = `<div class="danger-zone-ring"></div>`;
+
+                    // [핵심] 터치 영역(marker-touch-zone) 포함한 아이콘 HTML
+                    const iconHtml = `<div class="marker-touch-zone">${ringHtml}<div class="custom-dot-marker" style="background-color: ${color};"></div></div>`;
+                    const markerIcon = L.divIcon({ className: '', html: iconHtml, iconSize: [30, 30], iconAnchor: [15, 15] });
                     
                     let popup = `<b>${w.name}</b> <span class="text-xs text-gray-500">(${getRoleName(w.role)})</span>`;
                     if(isDisconnected) popup += `<br><span class="text-xs font-bold text-gray-500">📵 연결 끊김 (마지막 위치)</span>`;
                     if (isManager(currentUser.role)) { popup += `<div class="text-xs border-t mt-1 pt-1">직종: ${w.job||'-'} / 장비: ${w.equip||'-'}<br>연락처: ${w.personalInfo||'-'}<br>건강등급: <span class="font-bold ${risks.includes(w.healthGrade)?'text-red-500':''}">${w.healthGrade||'A'}</span>${w.checkupDate ? `<br>검진일: ${w.checkupDate}` : ''}${w.hasBP ? '<span class="text-red-500 font-bold ml-1">고혈압</span>' : ''}${w.hasDiabetes ? '<span class="text-red-500 font-bold ml-1">당뇨</span>' : ''}${w.isElderly ? '<span class="text-blue-500 font-bold ml-1">고령자</span>' : ''}${w.confinedTrained ? '<br><span class="text-green-600">✅ 밀폐교육 이수</span>' : '<br><span class="text-gray-400">밀폐교육 미이수</span>'}</div>`; }
-                    marker.bindPopup(popup); mapLayers.users.push(marker);
+                    
+                    // [핵심] 기존 마커가 있으면 업데이트, 없으면 생성
+                    if (workerMarkers[w.id]) {
+                        const existingMarker = workerMarkers[w.id];
+                        existingMarker.setLatLng([w.lat, w.lng]);
+                        existingMarker.setIcon(markerIcon);
+                        if(existingMarker.getPopup()) existingMarker.getPopup().setContent(popup);
+                        else existingMarker.bindPopup(popup);
+                    } else {
+                        const newMarker = L.marker([w.lat, w.lng], { icon: markerIcon }).addTo(map);
+                        newMarker.bindPopup(popup);
+                        workerMarkers[w.id] = newMarker;
+                        
+                        if(currentUser.role === 'super_admin') {
+                            newMarker.dragging.enable();
+                            newMarker.on('dragend', async (e) => { const newPos = e.target.getLatLng(); await updateDoc(doc(getColRef('workers'), w.id), { lat: newPos.lat, lng: newPos.lng }); });
+                        }
+                    }
                 });
-                renderDangerList(); updateStats(); checkSOS();
+
+                // [청소] 사라진 유저 마커 제거
+                Object.keys(workerMarkers).forEach(id => {
+                    if (!currentUpdateIds.has(id)) {
+                        map.removeLayer(workerMarkers[id]);
+                        delete workerMarkers[id];
+                    }
+                });
+
+                updateStats(); checkSOS(); renderDangerList();
             }));
 
             let qNotices = query(getColRef('notices'), orderBy('time', 'desc'), limit(1));
