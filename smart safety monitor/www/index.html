@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 시스템 v15.1 (완전동기화)</title>
+    <title>스마트 안전 관제 시스템 v16.0 (위험구역 완벽연동)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -128,7 +128,7 @@
 
     <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-90 hidden">
         <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md m-4 flex flex-col items-center max-h-[90vh] overflow-y-auto custom-scroll relative">
-            <div class="mb-6 flex flex-col items-center"><img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon"><h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1><p class="text-sm text-gray-500">System Admin v15.1</p></div>
+            <div class="mb-6 flex flex-col items-center"><img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon"><h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1><p class="text-sm text-gray-500">System Admin v16.0</p></div>
             <div class="flex border-b mb-4 w-full"><button id="tab-login" class="flex-1 py-2 font-bold text-blue-600 border-b-2 border-blue-600">로그인</button><button id="tab-signup" class="flex-1 py-2 text-gray-500 hover:text-blue-500">회원가입</button></div>
             <div id="form-login" class="space-y-4 w-full"><input type="text" id="login-id" placeholder="아이디" class="w-full border p-3 rounded"><input type="password" id="login-pw" placeholder="비밀번호" class="w-full border p-3 rounded"><div class="flex items-center gap-2"><input type="checkbox" id="auto-login-check" class="w-4 h-4"><label for="auto-login-check" class="text-sm text-gray-600">자동 로그인</label></div><button id="btn-login" class="w-full bg-blue-800 text-white py-3 rounded font-bold hover:bg-blue-900 transition shadow-lg">로그인</button></div>
             <div id="form-signup" class="space-y-4 hidden w-full"><input type="text" id="reg-id" placeholder="아이디" class="w-full border p-3 rounded"><input type="text" id="reg-name" placeholder="이름 (실명)" class="w-full border p-3 rounded"><input type="password" id="reg-pw" placeholder="비밀번호" class="w-full border p-3 rounded"><div class="border p-3 rounded bg-gray-50"><label class="text-xs font-bold text-gray-500 block mb-1">소속 현장 선택</label><select id="reg-site" class="w-full border p-2 rounded bg-white"></select></div><select id="reg-role" class="w-full border p-3 rounded bg-white"><option value="worker">근로자</option><option value="guard">경비</option><option value="supervisor">관리감독자</option><option value="safety">안전관리자</option><option value="health">보건관리자</option><option value="admin">현장소장</option></select><button id="btn-signup" class="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700 transition">가입 신청</button></div>
@@ -311,14 +311,45 @@
             }, 60000);
         }
 
+        // --- INTELLIGENT SIMULATION (Fixed) ---
         function startSimulation() {
             if(simulationInterval) clearInterval(simulationInterval);
             simulationInterval = setInterval(() => {
                 activeWorkers.forEach(w => {
+                    // Only manipulate test accounts
                     if(w.id.startsWith('test_') && w.id !== 'test_signal') {
                         const newLat = w.lat + (Math.random() - 0.5) * 0.0001;
                         const newLng = w.lng + (Math.random() - 0.5) * 0.0001;
-                        updateDoc(doc(getColRef('workers'), w.id), { lat: newLat, lng: newLng, lastUpdate: Date.now() });
+                        
+                        // Check if dummy entered danger zone
+                        let inDanger = false;
+                        let zoneName = null;
+                        // Use the global 'zones' array
+                        zones.forEach(z => {
+                            // Simple point-in-polygon check (ignoring altitude for dummies)
+                            if (z.type === 'danger' && isPointInPolygon([newLat, newLng], z.points)) {
+                                inDanger = true;
+                                zoneName = z.name;
+                            }
+                        });
+
+                        const updateData = { lat: newLat, lng: newLng, lastUpdate: Date.now() };
+                        
+                        // Handle Danger Status for Dummy
+                        if (inDanger) {
+                            if (!w.dangerEntryTime) {
+                                // Just entered
+                                updateData.dangerEntryTime = Date.now();
+                                showToast(`🚨 [${w.name}] 위험구역 진입!`, 'danger');
+                            }
+                            updateData.currentZoneName = zoneName;
+                        } else {
+                            // Safe
+                            updateData.dangerEntryTime = null;
+                            updateData.currentZoneName = null;
+                        }
+
+                        updateDoc(doc(getColRef('workers'), w.id), updateData);
                     }
                 });
             }, 3000);
@@ -376,15 +407,14 @@
                 });
             }));
 
-            // Sync User List First
             let qUsers = getColRef('users'); if(currentSiteId !== 'all') qUsers = query(qUsers, where('siteId', '==', currentSiteId));
             unsubscribers.push(onSnapshot(qUsers, (snap) => {
-                validUserIds.clear(); // Reset valid users
+                validUserIds.clear(); 
                 if(isSiteAdmin(currentUser.role)) {
                     const pList = document.getElementById('pending-list'); const aList = document.getElementById('approved-list'); pList.innerHTML = ''; aList.innerHTML = '';
                     snap.forEach(doc => { 
                         const u = { ...doc.data(), docId: doc.id }; 
-                        if(u.approved) validUserIds.add(u.id); // Add to valid set
+                        if(u.approved) validUserIds.add(u.id); 
                         if(u.role === 'super_admin') return; 
                         
                         const item = document.createElement('div'); item.className = "bg-white p-2 border rounded mb-1 flex justify-between items-center"; item.innerHTML = `<div><span class="font-bold text-gray-700">${u.name}</span> <span class="text-xs text-blue-500">(${getRoleName(u.role)})</span></div>`; const actions = document.createElement('div'); actions.className="flex items-center gap-2"; 
@@ -409,19 +439,12 @@
                 }
             }));
 
-            // Map Listener (Cross-Check with validUserIds)
             let qWorker = getColRef('workers'); if(currentSiteId !== 'all') qWorker = query(qWorker, where('siteId', '==', currentSiteId));
             unsubscribers.push(onSnapshot(qWorker, (snap) => {
                 mapLayers.users.forEach(m => map.removeLayer(m)); mapLayers.users = []; activeWorkers = [];
                 snap.forEach(async (docSnap) => {
                     const w = docSnap.data(); const isMe = (w.id === currentUser.id);
-                    
-                    // Ghost Data Check: If not me, and not in validUserIds, it's a ghost.
-                    if (!isMe && !validUserIds.has(w.id)) {
-                        // Optional: Auto-delete ghost data (Self-cleaning)
-                        // try { await deleteDoc(doc(getColRef('workers'), w.id)); } catch(e) {}
-                        return; // Skip rendering
-                    }
+                    if (!isMe && !validUserIds.has(w.id)) return; 
 
                     if(isMe && currentUser) { currentUser = { ...currentUser, ...w }; updateCommuteUI(currentUser); } 
 
@@ -767,6 +790,7 @@
         }
         function showToast(msg,type){ const c=document.getElementById('toast-container'); const t=document.createElement('div'); t.className=`toast ${type}`; let icon='fa-info-circle text-blue-500'; if(type==='danger') icon='fa-circle-exclamation text-red-500'; else if(type==='success') icon='fa-circle-check text-green-500'; else if(type==='warning') icon='fa-triangle-exclamation text-orange-500'; else if(type==='notice') icon='fa-bullhorn text-blue-600'; t.innerHTML=`<i class="fa-solid ${icon}"></i><div><div class="font-bold text-gray-800">알림</div><div class="text-sm text-gray-600">${msg}</div></div>`; c.appendChild(t); setTimeout(()=>t.remove(),4000); }
         
+        // --- Broadcast ---
         window.sendNotice = async () => {
             const msg = document.getElementById('notice-msg').value;
             if(!msg) return;
@@ -775,6 +799,7 @@
             alert("공지가 전송되었습니다.");
         };
 
+        // --- Excel Export ---
         window.exportToExcel = () => {
             if(activeWorkers.length === 0) return alert("데이터가 없습니다.");
             const wb = XLSX.utils.book_new();
