@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 시스템 v12.5 (SOS수정/연결감지)</title>
+    <title>스마트 안전 관제 시스템 v13.0 (최종)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -114,7 +114,7 @@
 
     <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-90 hidden">
         <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md m-4 flex flex-col items-center max-h-[90vh] overflow-y-auto custom-scroll relative">
-            <div class="mb-6 flex flex-col items-center"><img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon"><h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1><p class="text-sm text-gray-500">System Admin v12.5</p></div>
+            <div class="mb-6 flex flex-col items-center"><img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon"><h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1><p class="text-sm text-gray-500">System Admin v13.0</p></div>
             <div class="flex border-b mb-4 w-full"><button id="tab-login" class="flex-1 py-2 font-bold text-blue-600 border-b-2 border-blue-600">로그인</button><button id="tab-signup" class="flex-1 py-2 text-gray-500 hover:text-blue-500">회원가입</button></div>
             <div id="form-login" class="space-y-4 w-full"><input type="text" id="login-id" placeholder="아이디" class="w-full border p-3 rounded"><input type="password" id="login-pw" placeholder="비밀번호" class="w-full border p-3 rounded"><div class="flex items-center gap-2"><input type="checkbox" id="auto-login-check" class="w-4 h-4"><label for="auto-login-check" class="text-sm text-gray-600">자동 로그인</label></div><button id="btn-login" class="w-full bg-blue-800 text-white py-3 rounded font-bold hover:bg-blue-900 transition shadow-lg">로그인</button></div>
             <div id="form-signup" class="space-y-4 hidden w-full"><input type="text" id="reg-id" placeholder="아이디" class="w-full border p-3 rounded"><input type="text" id="reg-name" placeholder="이름 (실명)" class="w-full border p-3 rounded"><input type="password" id="reg-pw" placeholder="비밀번호" class="w-full border p-3 rounded"><div class="border p-3 rounded bg-gray-50"><label class="text-xs font-bold text-gray-500 block mb-1">소속 현장 선택</label><select id="reg-site" class="w-full border p-2 rounded bg-white"></select></div><select id="reg-role" class="w-full border p-3 rounded bg-white"><option value="worker">근로자</option><option value="guard">경비</option><option value="supervisor">관리감독자</option><option value="safety">안전관리자</option><option value="health">보건관리자</option><option value="admin">현장소장</option></select><button id="btn-signup" class="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700 transition">가입 신청</button></div>
@@ -478,7 +478,7 @@
         window.openCreateSiteModal = () => { document.getElementById('site-modal-title').innerText = "새 현장 생성"; document.getElementById('edit-site-id').value = ""; document.getElementById('new-site-name').value = ""; document.getElementById('createSiteModal').classList.remove('hidden'); };
         window.openEditSiteModal = () => { if(currentSiteId === 'all') return alert("수정할 개별 현장을 선택해주세요."); const siteName = siteMap[currentSiteId]; document.getElementById('site-modal-title').innerText = "현장 정보 수정"; document.getElementById('edit-site-id').value = currentSiteId; document.getElementById('new-site-name').value = siteName; document.getElementById('createSiteModal').classList.remove('hidden'); };
         window.saveSiteData = async () => { const id = document.getElementById('edit-site-id').value; const name = document.getElementById('new-site-name').value; if(!name) return; if(id) { await updateDoc(doc(getColRef('sites'), id), { name }); alert("수정 완료"); } else { await addDoc(getColRef('sites'), { name }); alert("생성 완료"); } document.getElementById('createSiteModal').classList.add('hidden'); };
-        window.deleteCurrentSite = async () => { if(currentUser.role !== 'super_admin') return alert("권한이 없습니다."); if(currentSiteId === 'all') return alert("삭제할 특정 현장을 목록에서 먼저 선택해주세요."); if(confirm(`[경고] 정말 '${siteMap[currentSiteId]}' 현장을 삭제하시겠습니까?`)) { await deleteDoc(doc(getColRef('sites'), currentSiteId)); alert("현장이 영구 삭제되었습니다."); document.getElementById('super-admin-site-select').value = 'all'; document.getElementById('deleteSelectionModal').classList.add('hidden'); currentSiteId = 'all'; subscribeData(); } };
+        window.deleteCurrentSite = async () => { if(currentUser.role !== 'super_admin') return alert("권한이 없습니다."); if(currentSiteId === 'all') return alert("삭제할 특정 현장을 목록에서 먼저 선택해주세요."); if(confirm(`[경고] 정말 '${siteMap[currentSiteId]}' 현장을 영구 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) { await deleteDoc(doc(getColRef('sites'), currentSiteId)); alert("현장이 영구 삭제되었습니다."); document.getElementById('super-admin-site-select').value = 'all'; document.getElementById('deleteSelectionModal').classList.add('hidden'); currentSiteId = 'all'; subscribeData(); } };
         window.editCurrentSiteBoundary = () => {
             const boundaryZone = zones.find(z => z.type === 'boundary');
             if(!boundaryZone) return alert("현재 현장에 설정된 경계가 없습니다. '구역 생성'으로 경계를 먼저 만들어주세요.");
@@ -525,8 +525,8 @@
             cancelDrawing(); document.getElementById('zoneModal').classList.add('hidden');
         };
 
-        window.deleteZone = async (id) => { if(confirm("삭제?")) await deleteDoc(doc(getColRef('zones'), id)); };
-        window.deleteUser = async (id) => { if(confirm("삭제?")) await deleteDoc(doc(getColRef('users'), id)); };
+        window.deleteZone = async (id) => { if(confirm("이 구역을 삭제하시겠습니까?")) await deleteDoc(doc(getColRef('zones'), id)); };
+        window.deleteUser = async (id) => { if(confirm("정말로 이 사용자를 삭제하시겠습니까?\n(이 작업은 되돌릴 수 없습니다.)")) await deleteDoc(doc(getColRef('users'), id)); };
         window.approveUser = async (id) => await updateDoc(doc(getColRef('users'), id), { approved: true });
         
         window.openInfoModal = (u) => {
@@ -575,11 +575,13 @@
                 if(snap.empty) { 
                     await addDoc(getColRef('users'), { id: r.id, pw: '1234', name: r.name, role: r.role, siteId: targetSite, approved: true }); 
                     const loc = genLoc();
-                    await setDoc(doc(getColRef('workers'), r.id), { id: r.id, name: r.name, role: r.role, siteId: targetSite, lat: loc.lat, lng: loc.lng, lastUpdate: Date.now(), isVisible: true }, {merge: true});
+                    // Set 't_signal' to start disconnected (1 hour ago), others connected (now)
+                    const lastUpdate = (r.id === 't_signal') ? (Date.now() - 3600000) : Date.now();
+                    await setDoc(doc(getColRef('workers'), r.id), { id: r.id, name: r.name, role: r.role, siteId: targetSite, lat: loc.lat, lng: loc.lng, lastUpdate: lastUpdate, isVisible: true }, {merge: true});
                     count++; 
                 } 
             }
-            alert(`${count}개의 테스트 계정이 생성되었습니다. (PW: 1234)`);
+            alert(`${count}개의 테스트 계정이 생성되었습니다. (PW: 1234)\n\n(참고: '테스트_신호수'는 연결 끊김 테스트를 위해 1시간 전 접속 상태로 생성됩니다.)`);
         };
         window.openDeleteSelectionModal = () => document.getElementById('deleteSelectionModal').classList.remove('hidden');
         
