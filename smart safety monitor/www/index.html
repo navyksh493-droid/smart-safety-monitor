@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>스마트 안전 관제 시스템 (보고용)</title>
+    <title>스마트 안전 관제 시스템 v12.0 (통합)</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -17,12 +17,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     
     <style>
         body { font-family: 'Noto Sans KR', sans-serif; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
         .map-container { height: 100vh; width: 100%; z-index: 10; }
         
-        #sos-overlay { pointer-events: none; z-index: 9998; mix-blend-mode: multiply; }
+        #sos-overlay { pointer-events: none; z-index: 9998; mix-blend-mode: multiply; transition: opacity 0.3s; }
         .sos-active-bg { animation: sos-flash-bg 1s infinite alternate; background-color: rgba(255, 0, 0, 0.4); display: block !important; }
         @keyframes sos-flash-bg { 0% { background-color: rgba(255, 0, 0, 0.1); } 100% { background-color: rgba(255, 0, 0, 0.5); } }
 
@@ -56,6 +57,7 @@
         .toast.success { border-left-color: #22c55e; }
         .toast.warning { border-left-color: #f97316; }
         .toast.danger { border-left-color: #ef4444; background-color: #fef2f2; }
+        .toast.notice { border-left-color: #3b82f6; background-color: #eff6ff; }
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; align-items: flex-end; }
         
         .custom-scroll::-webkit-scrollbar { width: 4px; }
@@ -113,7 +115,7 @@
 
     <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-90 hidden">
         <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md m-4 flex flex-col items-center max-h-[90vh] overflow-y-auto custom-scroll relative">
-            <div class="mb-6 flex flex-col items-center"><img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon"><h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1><p class="text-sm text-gray-500">System Admin v11.5</p></div>
+            <div class="mb-6 flex flex-col items-center"><img class="app-logo-img w-24 h-24 mb-4 shadow-lg rounded-3xl" alt="App Icon"><h1 class="text-2xl font-bold text-gray-800">스마트 안전 관제</h1><p class="text-sm text-gray-500">System Admin v12.0</p></div>
             <div class="flex border-b mb-4 w-full"><button id="tab-login" class="flex-1 py-2 font-bold text-blue-600 border-b-2 border-blue-600">로그인</button><button id="tab-signup" class="flex-1 py-2 text-gray-500 hover:text-blue-500">회원가입</button></div>
             <div id="form-login" class="space-y-4 w-full"><input type="text" id="login-id" placeholder="아이디" class="w-full border p-3 rounded"><input type="password" id="login-pw" placeholder="비밀번호" class="w-full border p-3 rounded"><div class="flex items-center gap-2"><input type="checkbox" id="auto-login-check" class="w-4 h-4"><label for="auto-login-check" class="text-sm text-gray-600">자동 로그인</label></div><button id="btn-login" class="w-full bg-blue-800 text-white py-3 rounded font-bold hover:bg-blue-900 transition shadow-lg">로그인</button></div>
             <div id="form-signup" class="space-y-4 hidden w-full"><input type="text" id="reg-id" placeholder="아이디" class="w-full border p-3 rounded"><input type="text" id="reg-name" placeholder="이름 (실명)" class="w-full border p-3 rounded"><input type="password" id="reg-pw" placeholder="비밀번호" class="w-full border p-3 rounded"><div class="border p-3 rounded bg-gray-50"><label class="text-xs font-bold text-gray-500 block mb-1">소속 현장 선택</label><select id="reg-site" class="w-full border p-2 rounded bg-white"></select></div><select id="reg-role" class="w-full border p-3 rounded bg-white"><option value="worker">근로자</option><option value="guard">경비</option><option value="supervisor">관리감독자</option><option value="safety">안전관리자</option><option value="health">보건관리자</option><option value="admin">현장소장</option></select><button id="btn-signup" class="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700 transition">가입 신청</button></div>
@@ -123,8 +125,16 @@
     <div id="main-dashboard" class="flex h-screen relative hidden">
         <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-[1400] hidden md:hidden glass transition-opacity duration-300"></div>
         <div class="w-80 bg-white shadow-xl z-[1500] flex flex-col border-r transition-all duration-300 absolute md:relative h-full -translate-x-full md:translate-x-0" id="sidebar">
-            <div class="p-4 bg-slate-800 text-white flex justify-between items-center shadow"><div class="flex items-center gap-2"><img class="app-logo-img w-8 h-8 rounded-lg" alt="icon"><div><h2 class="font-bold text-sm">관제 상황실</h2><p class="text-[10px] text-slate-300" id="user-display">접속중...</p></div></div><div class="flex gap-1 items-center"><button id="btn-my-info" class="text-xs bg-slate-700 border border-slate-600 px-2 py-1 rounded hover:bg-slate-600 hidden" title="내 정보"><i class="fa-solid fa-user-pen"></i></button><button id="btn-logout" class="text-xs bg-slate-700 border border-slate-600 px-2 py-1 rounded hover:bg-slate-600">로그아웃</button><button id="btn-close-sidebar" class="md:hidden text-white ml-2 hover:text-gray-300 p-1"><i class="fa-solid fa-xmark fa-xl"></i></button></div></div>
-            <div class="flex text-sm bg-gray-100 border-b"><button id="tab-monitor" class="flex-1 py-3 bg-white border-b-2 border-blue-500 font-bold text-blue-600">관제</button><button id="tab-users" class="flex-1 py-3 text-gray-500 hidden">인원 관리</button></div>
+            <div class="p-4 bg-slate-800 text-white flex justify-between items-center shadow">
+                <div class="flex items-center gap-2"><img class="app-logo-img w-8 h-8 rounded-lg" alt="icon"><div><h2 class="font-bold text-sm">관제 상황실</h2><p class="text-[10px] text-slate-300" id="user-display">접속중...</p></div></div>
+                <div class="flex gap-1 items-center"><button id="btn-my-info" class="text-xs bg-slate-700 border border-slate-600 px-2 py-1 rounded hover:bg-slate-600 hidden" title="내 정보"><i class="fa-solid fa-user-pen"></i></button><button id="btn-logout" class="text-xs bg-slate-700 border border-slate-600 px-2 py-1 rounded hover:bg-slate-600">로그아웃</button><button id="btn-close-sidebar" class="md:hidden text-white ml-2 hover:text-gray-300 p-1"><i class="fa-solid fa-xmark fa-xl"></i></button></div>
+            </div>
+            <div id="weather-widget" class="bg-blue-50 p-2 text-xs flex justify-between items-center border-b border-blue-100 hidden">
+                <div class="flex items-center gap-2 text-blue-800"><i class="fa-solid fa-cloud-sun"></i> <span id="weather-temp">--°C</span></div>
+                <div class="flex items-center gap-2 text-gray-600"><i class="fa-solid fa-wind"></i> <span id="weather-wind">-- m/s</span></div>
+            </div>
+
+            <div class="flex text-sm bg-gray-100 border-b"><button id="tab-monitor" class="flex-1 py-3 bg-white border-b-2 border-blue-500 font-bold text-blue-600">관제</button><button id="tab-users" class="flex-1 py-3 text-gray-500 hidden">인원 관리</button><button id="tab-logs" class="flex-1 py-3 text-gray-500 hidden">기록</button></div>
             
             <div id="panel-monitor" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scroll bg-gray-50 pb-20">
                 <div class="bg-white p-3 rounded border shadow-sm"><div class="flex justify-between items-center mb-2"><span class="text-sm font-bold text-gray-700 flex items-center"><i class="fa-solid fa-satellite-dish mr-2 text-blue-500"></i>GPS 자동 추적</span><div class="flex items-center gap-2"><span id="gps-indicator" class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded font-bold animate-pulse"><i class="fa-solid fa-circle"></i> 작동 중</span><button onclick="refreshGPS()" class="text-[10px] bg-gray-100 border border-gray-300 px-2 py-1 rounded hover:bg-gray-200"><i class="fa-solid fa-rotate-right"></i></button></div></div><div class="border-t pt-2"><div class="flex justify-between text-xs text-gray-600 mb-1"><span>내 높이 보정</span><span id="current-alt-display" class="font-bold text-blue-600">0m</span></div><input type="range" id="alt-slider" min="-10" max="50" value="0" step="1" class="w-full"></div></div>
@@ -133,15 +143,26 @@
                 
                 <div id="admin-tools" class="hidden bg-white p-4 rounded shadow-sm border border-blue-100">
                     <h3 class="font-bold text-blue-800 text-sm mb-2 flex justify-between">관리자 도구</h3>
-                    <div id="super-admin-dropdown-area" class="hidden mb-3 border-b pb-2"><label class="text-[10px] font-bold text-gray-500 block mb-1">관리할 현장 선택</label><select id="super-admin-site-select" class="w-full text-xs border border-blue-300 rounded p-2 bg-blue-50 font-bold shadow-sm mb-2"></select><button onclick="createTestAccounts()" class="w-full bg-indigo-100 text-indigo-700 py-2 rounded text-xs font-bold border border-indigo-200 hover:bg-indigo-200"><i class="fa-solid fa-flask"></i> 🧪 테스트 계정 일괄 생성 (지도 중앙)</button></div>
+                    <div id="super-admin-dropdown-area" class="hidden mb-3 border-b pb-2"><label class="text-[10px] font-bold text-gray-500 block mb-1">관리할 현장 선택</label><select id="super-admin-site-select" class="w-full text-xs border border-blue-300 rounded p-2 bg-blue-50 font-bold shadow-sm mb-2"></select><button onclick="createTestAccounts()" class="w-full bg-indigo-100 text-indigo-700 py-2 rounded text-xs font-bold border border-indigo-200 hover:bg-indigo-200"><i class="fa-solid fa-flask"></i> 🧪 테스트 근로자 4명 생성</button></div>
                     <div id="admin-button-area" class="mb-3"></div>
-                    <div id="tool-default" class="space-y-2"><div class="bg-gray-50 p-2 rounded border border-gray-200"><label class="text-xs font-bold text-gray-600 block mb-1">계절 위험 관리</label><select id="seasonal-risk-select" class="w-full text-xs p-1 border rounded" onchange="updateSeasonalRisk(this.value)"><option value="none">위험 없음</option><option value="heat">폭염 경보</option><option value="cold">한파 경보</option></select></div></div>
+                    <div id="tool-default" class="space-y-2">
+                        <div class="bg-gray-50 p-2 rounded border border-gray-200"><label class="text-xs font-bold text-gray-600 block mb-1">📢 전체 공지 전송</label><div class="flex gap-1"><input type="text" id="notice-msg" class="flex-1 text-xs border p-1 rounded" placeholder="긴급 알림 내용"><button onclick="sendNotice()" class="bg-blue-600 text-white text-xs px-2 rounded font-bold">전송</button></div></div>
+                    </div>
                     <div id="tool-drawing" class="hidden space-y-2"><div class="bg-yellow-50 p-2 rounded text-xs text-center border text-yellow-800 font-bold">그리기 모드 ON</div><button id="btn-finish-draw" class="w-full bg-green-600 text-white font-bold py-2 rounded text-sm">완료</button><button id="btn-cancel-draw" onclick="cancelDrawing()" class="w-full bg-gray-200 text-gray-600 font-bold py-2 rounded text-sm">취소</button></div>
                 </div>
                 <div class="bg-white p-4 rounded shadow-sm border"><h3 class="font-bold text-gray-700 text-sm mb-2">구역 목록</h3><div id="zone-list" class="space-y-2 max-h-40 overflow-y-auto custom-scroll text-xs text-gray-500 text-center">로딩중...</div></div>
             </div>
             
-            <div id="panel-users" class="hidden flex-1 overflow-y-auto p-4 custom-scroll bg-gray-50 pb-20"><h3 class="font-bold text-gray-700 text-sm mb-2 border-l-4 border-blue-500 pl-2">승인 대기</h3><div id="pending-list" class="space-y-2 mb-6"></div><h3 class="font-bold text-gray-700 text-sm mb-2 border-l-4 border-green-500 pl-2">승인 목록</h3><div id="approved-list" class="space-y-2"></div></div>
+            <div id="panel-users" class="hidden flex-1 overflow-y-auto p-4 custom-scroll bg-gray-50 pb-20">
+                <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-700 text-sm">인원 관리</h3><button onclick="exportToExcel()" class="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"><i class="fa-solid fa-file-excel mr-1"></i>엑셀 저장</button></div>
+                <h3 class="font-bold text-gray-700 text-sm mb-2 border-l-4 border-blue-500 pl-2">승인 대기</h3><div id="pending-list" class="space-y-2 mb-6"></div>
+                <h3 class="font-bold text-gray-700 text-sm mb-2 border-l-4 border-green-500 pl-2">승인 목록 <span class="text-[10px] text-gray-500 font-normal">(💚:건강지정)</span></h3><div id="approved-list" class="space-y-2"></div>
+            </div>
+
+            <div id="panel-logs" class="hidden flex-1 overflow-y-auto p-4 custom-scroll bg-gray-50 pb-20">
+                <h3 class="font-bold text-gray-700 text-sm mb-2 flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left"></i> 안전/보건 로그</h3>
+                <div id="log-list" class="space-y-2 text-xs"></div>
+            </div>
         </div>
 
         <div class="flex-1 relative bg-gray-200">
@@ -195,9 +216,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, getDocs, setDoc, addDoc, deleteDoc, onSnapshot, query, where, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, getDocs, setDoc, addDoc, deleteDoc, onSnapshot, query, where, updateDoc, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // ✅ 선생님의 실제 키가 적용된 버전입니다.
         const firebaseConfig = {
           apiKey: "AIzaSyCMWQa-O2m8BB0XHzhXlYfdy3smIsgKs0A",
           authDomain: "smart-safety-monitor-37649.firebaseapp.com",
@@ -246,7 +266,7 @@
 
         function loadSitesToSelect(elementId) { onSnapshot(getColRef('sites'), (snap) => { const sel = document.getElementById(elementId); const currentVal = sel.value; sel.innerHTML = '<option value="" disabled selected>현장 선택</option>'; if(elementId === 'super_admin_site_select') sel.innerHTML += '<option value="all">🌐 모든 현장 보기 (통합)</option>'; snap.forEach(d => { const s = d.data(); siteMap[d.id] = s.name; sel.innerHTML += `<option value="${d.id}">${s.name}</option>`; }); if(currentVal) sel.value = currentVal; }); }
         window.handleLogin = async () => { const id = document.getElementById('login-id').value; const pw = document.getElementById('login-pw').value; if(!id || !pw) return alert("입력 필요"); const q = query(getColRef('users'), where('id', '==', id), where('pw', '==', pw)); const snap = await getDocs(q); if(snap.empty) return alert("정보 불일치"); const u = { ...snap.docs[0].data(), id: snap.docs[0].id }; if(!u.approved) return alert("승인 대기 중"); if (id === 'dark584' && pw === 'Rufghs0423!!') { u.role = 'super_admin'; u.siteId = 'all'; } if(document.getElementById('auto-login-check').checked) localStorage.setItem('savedUserId', u.id); loginSuccess(u); }
-        function loginSuccess(u) { currentUser = u; currentSiteId = u.siteId; document.getElementById('auth-screen').classList.add('hidden'); document.getElementById('main-dashboard').classList.remove('hidden'); document.getElementById('user-display').innerText = `${currentUser.name} (${getRoleName(currentUser.role)})`; if(isManager(currentUser.role)) { document.getElementById('admin-tools').classList.remove('hidden'); document.getElementById('tab-users').classList.remove('hidden'); updateAdminToolsUI(); } if(currentUser.role === 'worker') document.getElementById('btn-my-info').classList.remove('hidden'); enableNoSleep(); initMap(); subscribeData(); startGPS(); setInterval(renderDangerList, 1000); setInterval(checkDangerOvertime, 1000); }
+        function loginSuccess(u) { currentUser = u; currentSiteId = u.siteId; document.getElementById('auth-screen').classList.add('hidden'); document.getElementById('main-dashboard').classList.remove('hidden'); document.getElementById('user-display').innerText = `${currentUser.name} (${getRoleName(currentUser.role)})`; if(isManager(currentUser.role)) { document.getElementById('admin-tools').classList.remove('hidden'); document.getElementById('tab-users').classList.remove('hidden'); document.getElementById('tab-logs').classList.remove('hidden'); document.getElementById('weather-widget').classList.remove('hidden'); updateAdminToolsUI(); } if(currentUser.role === 'worker') document.getElementById('btn-my-info').classList.remove('hidden'); enableNoSleep(); initMap(); subscribeData(); startGPS(); setInterval(renderDangerList, 1000); setInterval(checkDangerOvertime, 1000); }
 
         function updateAdminToolsUI() {
             const role = currentUser.role; const btnArea = document.getElementById('admin-button-area'); const dropdownArea = document.getElementById('super-admin-dropdown-area'); btnArea.innerHTML = '';
@@ -260,7 +280,29 @@
         window.switchAuth = (mode) => { document.getElementById('form-login').classList.toggle('hidden', mode !== 'login'); document.getElementById('form-signup').classList.toggle('hidden', mode === 'login'); }
         function loadSuperAdminSiteSelector() { const sel = document.getElementById('super-admin-site-select'); onSnapshot(getColRef('sites'), (snap) => { sel.innerHTML = '<option value="all">🌐 모든 현장 보기 (통합)</option>'; snap.forEach(d => { sel.innerHTML += `<option value="${d.id}">${d.data().name}</option>`; }); }); sel.onchange = (e) => { currentSiteId = e.target.value; subscribeData(); }; }
         
-        function initMap() { map = L.map('map', {zoomControl: false}).setView([SITE_CENTER.lat, SITE_CENTER.lng], 16); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(map); L.control.zoom({position: 'bottomright'}).addTo(map); L.circle([SITE_CENTER.lat, SITE_CENTER.lng], { radius: 10, color: 'black', fillColor: 'black' }).bindPopup("현장 기준점").addTo(map); map.on('click', (e) => { if(isDrawing) addDrawingPoint(e.latlng); }); }
+        function initMap() { 
+            map = L.map('map', {zoomControl: false}).setView([SITE_CENTER.lat, SITE_CENTER.lng], 16); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(map); L.control.zoom({position: 'bottomright'}).addTo(map); L.circle([SITE_CENTER.lat, SITE_CENTER.lng], { radius: 10, color: 'black', fillColor: 'black' }).bindPopup("현장 기준점").addTo(map); map.on('click', (e) => { if(isDrawing) addDrawingPoint(e.latlng); });
+            fetchWeather();
+        }
+
+        // --- Weather & Log Features ---
+        async function fetchWeather() {
+            try {
+                // Open-Meteo free API (No key required)
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${SITE_CENTER.lat}&longitude=${SITE_CENTER.lng}&current_weather=true`);
+                const data = await res.json();
+                if(data.current_weather) {
+                    document.getElementById('weather-temp').innerText = `${data.current_weather.temperature}°C`;
+                    document.getElementById('weather-wind').innerText = `${data.current_weather.windspeed} m/s`;
+                }
+            } catch(e) { console.log('Weather fetch failed', e); }
+        }
+
+        async function logEvent(type, msg) {
+            try {
+                await addDoc(getColRef('logs'), { type, msg, time: Date.now(), siteId: currentSiteId });
+            } catch(e) {}
+        }
 
         function subscribeData() {
             unsubscribers.forEach(unsub => unsub()); unsubscribers = []; mapLayers.zones.forEach(l => map.removeLayer(l)); mapLayers.zones = []; mapLayers.users.forEach(l => map.removeLayer(l)); mapLayers.users = []; activeWorkers = []; boundaryPolygon = null;
@@ -290,9 +332,10 @@
                     let color = '#2563eb'; // Default Worker Blue
                     if(['super_admin', 'admin', 'safety', 'health', 'supervisor'].includes(w.role)) color = '#f97316'; // Orange
                     else if (w.role === 'guard') color = '#eab308'; // Yellow
-                    const risks = ['C1', 'C2', 'D1', 'D2', 'R']; if((w.role === 'worker') && (risks.includes(w.healthGrade) || w.hasBP || w.hasDiabetes || w.isElderly)) color = '#22c55e'; // Green
+                    const risks = ['C1', 'C2', 'D1', 'D2', 'R']; 
+                    // Health Watchlist Logic (Updated)
+                    if((w.role === 'worker') && (risks.includes(w.healthGrade) || w.hasBP || w.hasDiabetes || w.isElderly || w.isHealthCareTarget)) color = '#22c55e'; // Green
                     
-                    // Danger Color Logic (Purple -> Red)
                     if (w.dangerEntryTime) {
                         const elapsed = (Date.now() - w.dangerEntryTime) / 1000;
                         const limit = w.dangerLimit || 60;
@@ -316,17 +359,67 @@
                 renderDangerList(); updateStats(); checkSOS();
             }));
 
+            // --- Notice Listener ---
+            let qNotices = query(getColRef('notices'), orderBy('time', 'desc'), limit(1));
+            if(currentSiteId !== 'all') qNotices = query(getColRef('notices'), where('siteId', '==', currentSiteId), orderBy('time', 'desc'), limit(1));
+            unsubscribers.push(onSnapshot(qNotices, (snap) => {
+                snap.docChanges().forEach(change => {
+                    if (change.type === "added") {
+                        const notice = change.doc.data();
+                        if (Date.now() - notice.time < 10000) showToast(`📢 [공지] ${notice.msg}`, "notice");
+                    }
+                });
+            }));
+
+            // --- Log Listener ---
+            if(isManager(currentUser.role)) {
+                let qLogs = query(getColRef('logs'), orderBy('time', 'desc'), limit(20));
+                if(currentSiteId !== 'all') qLogs = query(getColRef('logs'), where('siteId', '==', currentSiteId), orderBy('time', 'desc'), limit(20));
+                unsubscribers.push(onSnapshot(qLogs, (snap) => {
+                    const logList = document.getElementById('log-list'); logList.innerHTML = '';
+                    snap.forEach(d => {
+                        const l = d.data(); const date = new Date(l.time).toLocaleString();
+                        let color = 'text-gray-600'; if(l.type==='sos') color='text-red-600 font-bold'; else if(l.type==='danger') color='text-purple-600';
+                        logList.innerHTML += `<div class="bg-white p-2 border-b mb-1"><div class="text-[10px] text-gray-400">${date}</div><div class="${color}">[${l.type.toUpperCase()}] ${l.msg}</div></div>`;
+                    });
+                }));
+            }
+
             if(isSiteAdmin(currentUser.role)) {
                 let qUsers = getColRef('users'); if(currentSiteId !== 'all') qUsers = query(qUsers, where('siteId', '==', currentSiteId));
                 unsubscribers.push(onSnapshot(qUsers, (snap) => {
                     const pList = document.getElementById('pending-list'); const aList = document.getElementById('approved-list'); pList.innerHTML = ''; aList.innerHTML = '';
-                    snap.forEach(doc => { const u = { ...doc.data(), docId: doc.id }; if(u.role === 'super_admin') return; const item = document.createElement('div'); item.className = "bg-white p-2 border rounded mb-1 flex justify-between items-center"; item.innerHTML = `<div><span class="font-bold text-gray-700">${u.name}</span> <span class="text-xs text-blue-500">(${getRoleName(u.role)})</span></div>`; const actions = document.createElement('div'); if(!u.approved) { const btn = document.createElement('button'); btn.innerText = "승인"; btn.className = "text-blue-600 font-bold mr-2"; btn.onclick = () => approveUser(u.docId); actions.appendChild(btn); pList.appendChild(item); } else { if(currentUser.role === 'super_admin' || currentUser.role === 'admin') { const btn = document.createElement('button'); btn.innerHTML = '<i class="fa-solid fa-trash"></i>'; btn.className = "text-red-500"; btn.onclick = () => deleteUser(u.docId); actions.appendChild(btn); } item.onclick = (e) => { if(e.target.tagName !== 'BUTTON') window.openInfoModal(u); }; aList.appendChild(item); } item.appendChild(actions); });
+                    snap.forEach(doc => { const u = { ...doc.data(), docId: doc.id }; if(u.role === 'super_admin') return; const item = document.createElement('div'); item.className = "bg-white p-2 border rounded mb-1 flex justify-between items-center"; item.innerHTML = `<div><span class="font-bold text-gray-700">${u.name}</span> <span class="text-xs text-blue-500">(${getRoleName(u.role)})</span></div>`; const actions = document.createElement('div'); actions.className="flex items-center gap-2"; 
+                    if(!u.approved) { const btn = document.createElement('button'); btn.innerText = "승인"; btn.className = "text-blue-600 font-bold mr-2"; btn.onclick = () => approveUser(u.docId); actions.appendChild(btn); pList.appendChild(item); } 
+                    else { 
+                        // Health Toggle
+                        if(u.role === 'worker') {
+                            const healthCheck = document.createElement('input'); healthCheck.type='checkbox'; healthCheck.className="w-4 h-4 accent-green-500 mr-2"; healthCheck.title="집중 건강 관리 대상";
+                            if(u.isHealthCareTarget) healthCheck.checked = true;
+                            healthCheck.onclick = (e) => { e.stopPropagation(); toggleHealthCare(u.docId, u.id, e.target.checked); };
+                            actions.appendChild(healthCheck);
+                        }
+                        if(currentUser.role === 'super_admin' || currentUser.role === 'admin') { const btn = document.createElement('button'); btn.innerHTML = '<i class="fa-solid fa-trash"></i>'; btn.className = "text-red-500"; btn.onclick = () => deleteUser(u.docId); actions.appendChild(btn); } item.onclick = (e) => { if(e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') window.openInfoModal(u); }; aList.appendChild(item); 
+                    } item.appendChild(actions); });
                 }));
             }
         }
 
-        window.triggerSOS = async () => { if(!currentUser) return; const btn = document.getElementById('btn-sos'); const isSOSNow = btn.classList.contains('active'); if(!isSOSNow) { btn.classList.add('active'); showToast("🆘 구조 요청(SOS)을 전송합니다!", "danger"); } else { btn.classList.remove('active'); showToast("SOS 상황을 해제합니다.", "info"); } await updateDoc(doc(getColRef('workers'), currentUser.id), { isSOS: !isSOSNow }); };
-        function checkSOS() { const sosWorkers = activeWorkers.filter(w => w.isSOS); const overlay = document.getElementById('sos-overlay'); const btn = document.getElementById('btn-sos'); const myStatus = sosWorkers.find(w => w.id === currentUser.id); if(myStatus && !btn.classList.contains('active')) btn.classList.add('active'); if(!myStatus && btn.classList.contains('active')) btn.classList.remove('active'); if(sosWorkers.length > 0) { if(overlay.classList.contains('hidden')) { overlay.classList.remove('hidden'); overlay.classList.add('sos-active-bg'); } if(!sosInterval) { triggerSOSAlarm(sosWorkers); sosInterval = setInterval(() => triggerSOSAlarm(sosWorkers), 10000); } } else { overlay.classList.add('hidden'); overlay.classList.remove('sos-active-bg'); if(sosInterval) { clearInterval(sosInterval); sosInterval = null; } } }
+        window.toggleHealthCare = async (docId, userId, isTarget) => {
+            await updateDoc(doc(getColRef('users'), docId), { isHealthCareTarget: isTarget });
+            // Also update worker collection for immediate color change
+            const workerRef = doc(getColRef('workers'), userId);
+            try { await updateDoc(workerRef, { isHealthCareTarget: isTarget }); } catch(e) {}
+        };
+
+        window.triggerSOS = async () => { if(!currentUser) return; const btn = document.getElementById('btn-sos'); const isSOSNow = btn.classList.contains('active'); if(!isSOSNow) { btn.classList.add('active'); showToast("🆘 구조 요청(SOS)을 전송합니다!", "danger"); logEvent('sos', `${currentUser.name} 님이 구조 요청을 보냈습니다.`); } else { btn.classList.remove('active'); showToast("SOS 상황을 해제합니다.", "info"); } await updateDoc(doc(getColRef('workers'), currentUser.id), { isSOS: !isSOSNow }); };
+        function checkSOS() { 
+            const sosWorkers = activeWorkers.filter(w => w.isSOS); const overlay = document.getElementById('sos-overlay'); const btn = document.getElementById('btn-sos'); const myStatus = sosWorkers.find(w => w.id === currentUser.id); 
+            if(myStatus && !btn.classList.contains('active')) btn.classList.add('active'); if(!myStatus && btn.classList.contains('active')) btn.classList.remove('active'); 
+            // Fix: Strict check for overlay removal
+            if(sosWorkers.length > 0) { if(overlay.classList.contains('hidden')) { overlay.classList.remove('hidden'); overlay.classList.add('sos-active-bg'); } if(!sosInterval) { triggerSOSAlarm(sosWorkers); sosInterval = setInterval(() => triggerSOSAlarm(sosWorkers), 10000); } } 
+            else { overlay.classList.add('hidden'); overlay.classList.remove('sos-active-bg'); if(sosInterval) { clearInterval(sosInterval); sosInterval = null; } } 
+        }
         function triggerSOSAlarm(workers) { if(navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 1000]); showToast(`🚨 긴급! ${workers.map(u => u.name).join(', ')} 님이 구조 요청 중!`, "danger"); }
 
         function checkDangerOvertime() {
@@ -446,12 +539,18 @@
             if(!targetSite) return alert("생성할 현장이 없습니다. 현장을 먼저 생성해주세요.");
             const center = map.getCenter();
             const genLoc = () => ({ lat: center.lat + (Math.random() - 0.5) * 0.002, lng: center.lng + (Math.random() - 0.5) * 0.002 });
-            const roles = [ {id: 'test_admin', name: '김소장', role: 'admin'}, {id: 'test_safe', name: '이안전', role: 'safety'}, {id: 'test_health', name: '박보건', role: 'health'}, {id: 'test_super', name: '최감독', role: 'supervisor'}, {id: 'test_guard', name: '정경비', role: 'guard'}, {id: 'test_worker', name: '강근로', role: 'worker'}, {id: 'test_pending', name: '대기자', role: 'worker', approved: false} ];
+            const roles = [ 
+                {id: 'test_admin', name: '김소장', role: 'admin'}, {id: 'test_safe', name: '이안전', role: 'safety'}, 
+                {id: 'test_health', name: '박보건', role: 'health'}, {id: 'test_super', name: '최감독', role: 'supervisor'}, 
+                {id: 'test_guard', name: '정경비', role: 'guard'}, {id: 'test_worker', name: '강근로', role: 'worker'}, 
+                {id: 't_carpenter', name: '테스트_목수', role: 'worker'}, {id: 't_welder', name: '테스트_용접', role: 'worker'},
+                {id: 't_scaffold', name: '테스트_비계', role: 'worker'}, {id: 't_signal', name: '테스트_신호수', role: 'worker'}
+            ];
             let count = 0; 
             for(const r of roles) { 
                 const q = query(getColRef('users'), where('id', '==', r.id)); const snap = await getDocs(q); 
                 if(snap.empty) { 
-                    await addDoc(getColRef('users'), { id: r.id, pw: '1234', name: r.name, role: r.role, siteId: targetSite, approved: r.approved !== false }); 
+                    await addDoc(getColRef('users'), { id: r.id, pw: '1234', name: r.name, role: r.role, siteId: targetSite, approved: true }); 
                     const loc = genLoc();
                     await setDoc(doc(getColRef('workers'), r.id), { id: r.id, name: r.name, role: r.role, siteId: targetSite, lat: loc.lat, lng: loc.lng, lastUpdate: Date.now(), isVisible: true }, {merge: true});
                     count++; 
@@ -479,7 +578,14 @@
             // Smart Update for Danger Time (Check local cache via activeWorkers)
             const me = activeWorkers.find(w => w.id === currentUser.id);
             let currentEntryTime = me ? me.dangerEntryTime : null;
-            if (inDanger) { if (!currentEntryTime) currentEntryTime = Date.now(); } 
+            if (inDanger) { 
+                if (!currentEntryTime) {
+                    currentEntryTime = Date.now(); 
+                    if(navigator.vibrate) navigator.vibrate([100,50,100]);
+                    showToast(`🚨 위험 구역 [${zoneName}] 진입!`, "danger");
+                    logEvent('danger', `${currentUser.name} 님이 위험 구역 [${zoneName}]에 진입했습니다.`);
+                }
+            } 
             else { if (currentEntryTime) showToast("✅ 상황 종료: 안전 구역으로 복귀함", "success"); currentEntryTime = null; }
 
             const dist = getDistanceFromLatLonInKm(lat, lng, SITE_CENTER.lat, SITE_CENTER.lng); const isOut = (dist > MAX_DISTANCE_KM) && !inAnyZone2D;
@@ -500,15 +606,39 @@
             const list=document.getElementById('danger-worker-list'); const panel=document.getElementById('danger-status-panel'); const d=activeWorkers.filter(w=>w.dangerEntryTime); list.innerHTML=''; 
             if(d.length>0){ panel.classList.remove('hidden'); d.forEach(w=>{ const elapsed = Math.floor((Date.now()-w.dangerEntryTime)/1000); const limit = w.dangerLimit || 60; const isOver = elapsed > limit; const style = isOver ? 'text-red-600 font-extrabold animate-pulse' : 'text-purple-600 font-bold'; list.innerHTML+=`<div class="flex justify-between items-center bg-gray-50 p-1 rounded border-b"><span>${w.name} (${w.currentZoneName})</span><span class="${style}">${elapsed}s / ${limit}s</span></div>`; }); } else panel.classList.add('hidden'); 
         }
-        function showToast(msg,type){ const c=document.getElementById('toast-container'); const t=document.createElement('div'); t.className=`toast ${type}`; let icon='fa-info-circle text-blue-500'; if(type==='danger') icon='fa-circle-exclamation text-red-500'; else if(type==='success') icon='fa-circle-check text-green-500'; else if(type==='warning') icon='fa-triangle-exclamation text-orange-500'; t.innerHTML=`<i class="fa-solid ${icon}"></i><div><div class="font-bold text-gray-800">알림</div><div class="text-sm text-gray-600">${msg}</div></div>`; c.appendChild(t); setTimeout(()=>t.remove(),4000); }
+        function showToast(msg,type){ const c=document.getElementById('toast-container'); const t=document.createElement('div'); t.className=`toast ${type}`; let icon='fa-info-circle text-blue-500'; if(type==='danger') icon='fa-circle-exclamation text-red-500'; else if(type==='success') icon='fa-circle-check text-green-500'; else if(type==='warning') icon='fa-triangle-exclamation text-orange-500'; else if(type==='notice') icon='fa-bullhorn text-blue-600'; t.innerHTML=`<i class="fa-solid ${icon}"></i><div><div class="font-bold text-gray-800">알림</div><div class="text-sm text-gray-600">${msg}</div></div>`; c.appendChild(t); setTimeout(()=>t.remove(),4000); }
+        
+        // --- Broadcast ---
+        window.sendNotice = async () => {
+            const msg = document.getElementById('notice-msg').value;
+            if(!msg) return;
+            await addDoc(getColRef('notices'), { msg, time: Date.now(), sender: currentUser.name, siteId: currentSiteId });
+            document.getElementById('notice-msg').value = '';
+            alert("공지가 전송되었습니다.");
+        };
+
+        // --- Excel Export ---
+        window.exportToExcel = () => {
+            if(activeWorkers.length === 0) return alert("데이터가 없습니다.");
+            const wb = XLSX.utils.book_new();
+            const data = activeWorkers.map(w => ({
+                이름: w.name, 직급: getRoleName(w.role), 상태: w.isVisible ? '작업중' : '이탈', 
+                위험구역: w.dangerEntryTime ? '진입' : '-', SOS: w.isSOS ? '요청중' : '-', 
+                건강관리대상: w.isHealthCareTarget ? 'O' : 'X', 업데이트: new Date(w.lastUpdate).toLocaleTimeString()
+            }));
+            const ws = XLSX.utils.json_to_sheet(data);
+            XLSX.utils.book_append_sheet(wb, ws, "현장인원");
+            XLSX.writeFile(wb, `안전관제_현황_${new Date().toISOString().slice(0,10)}.xlsx`);
+        };
 
         document.getElementById('btn-login').onclick = handleLogin; document.getElementById('btn-signup').onclick = handleSignup; document.getElementById('tab-login').onclick = () => switchAuth('login'); document.getElementById('tab-signup').onclick = () => switchAuth('signup'); document.getElementById('alt-slider').oninput = (e) => { currentAltitude = parseInt(e.target.value); document.getElementById('current-alt-display').innerText = `${currentAltitude}m`; };
         const sidebar = document.getElementById('sidebar'); const overlay = document.getElementById('sidebar-overlay');
         document.getElementById('btn-menu-toggle').onclick = () => { sidebar.classList.remove('-translate-x-full'); overlay.classList.remove('hidden'); };
         const closeSidebar = () => { sidebar.classList.add('-translate-x-full'); overlay.classList.add('hidden'); };
         document.getElementById('btn-close-sidebar').onclick = closeSidebar; overlay.onclick = closeSidebar;
-        document.getElementById('tab-monitor').onclick = () => { document.getElementById('panel-monitor').classList.remove('hidden'); document.getElementById('panel-users').classList.add('hidden'); document.getElementById('tab-monitor').classList.add('border-b-2','border-blue-500','text-blue-600'); document.getElementById('tab-users').classList.remove('border-b-2','border-blue-500','text-blue-600'); };
-        document.getElementById('tab-users').onclick = () => { document.getElementById('panel-monitor').classList.add('hidden'); document.getElementById('panel-users').classList.remove('hidden'); document.getElementById('tab-users').classList.add('border-b-2','border-blue-500','text-blue-600'); document.getElementById('tab-monitor').classList.remove('border-b-2','border-blue-500','text-blue-600'); };
+        document.getElementById('tab-monitor').onclick = () => { document.getElementById('panel-monitor').classList.remove('hidden'); document.getElementById('panel-users').classList.add('hidden'); document.getElementById('panel-logs').classList.add('hidden'); document.getElementById('tab-monitor').classList.add('border-b-2','border-blue-500','text-blue-600'); document.getElementById('tab-users').classList.remove('border-b-2','border-blue-500','text-blue-600'); document.getElementById('tab-logs').classList.remove('border-b-2','border-blue-500','text-blue-600'); };
+        document.getElementById('tab-users').onclick = () => { document.getElementById('panel-monitor').classList.add('hidden'); document.getElementById('panel-users').classList.remove('hidden'); document.getElementById('panel-logs').classList.add('hidden'); document.getElementById('tab-users').classList.add('border-b-2','border-blue-500','text-blue-600'); document.getElementById('tab-monitor').classList.remove('border-b-2','border-blue-500','text-blue-600'); document.getElementById('tab-logs').classList.remove('border-b-2','border-blue-500','text-blue-600'); };
+        document.getElementById('tab-logs').onclick = () => { document.getElementById('panel-monitor').classList.add('hidden'); document.getElementById('panel-users').classList.add('hidden'); document.getElementById('panel-logs').classList.remove('hidden'); document.getElementById('tab-logs').classList.add('border-b-2','border-blue-500','text-blue-600'); document.getElementById('tab-users').classList.remove('border-b-2','border-blue-500','text-blue-600'); document.getElementById('tab-monitor').classList.remove('border-b-2','border-blue-500','text-blue-600'); };
         window.openMyInfoModal = () => { document.getElementById('my-name').value = currentUser.name || ''; document.getElementById('myInfoModal').classList.remove('hidden'); };
         window.saveMyInfo = async () => { const name = document.getElementById('my-name').value; await updateDoc(doc(getColRef('users'), currentUser.id), { name }); currentUser.name = name; document.getElementById('user-display').innerText = `${name} (${getRoleName(currentUser.role)})`; document.getElementById('myInfoModal').classList.add('hidden'); };
     </script>
